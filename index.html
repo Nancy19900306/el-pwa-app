@@ -1,0 +1,1088 @@
+<!-- PWA 支持 -->
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="theme-color" content="#4285F4">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>单词大冒险：终极养成版 (AI绘图完整版)</title>
+    <!-- 引入必要的库 -->
+    <script src="https://data.aix101.com/cdn/npm/@tailwindcss/3.4.17.js"></script>
+    <link rel="stylesheet" href="https://data.aix101.com/cdn/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/pinyin-pro@3.18.2/dist/index.js"></script>
+    <script src="https://cdn.zcat.cn/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* 核心基础样式与护眼背景 */
+        body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background-color: #F5F7FB; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 70% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-50px); opacity: 0; } }
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+        /* 大尺寸、带物理按压感的选项按钮 */
+        .option-btn { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 6px solid #e2e8f0; position: relative; top: 0; }
+        .option-btn:active { top: 6px; border-bottom: 0px solid transparent; }
+        .option-btn.correct { background-color: #E6F4EA !important; border-color: #34A853 !important; border-bottom-color: #1E8E3E !important; color: #137333 !important; }
+        .option-btn.wrong { background-color: #FCE8E6 !important; border-color: #EA4335 !important; border-bottom-color: #D93025 !important; color: #A50E0E !important; animation: shake 0.3s ease-in-out; }
+
+        /* 侧边栏激活状态 */
+        .sidebar-item.active { background-color: #E8F0FE; color: #1967D2; font-weight: bold; border-right: 4px solid #4285F4; }
+        .sidebar-item.bookmark { background-color: #FFF8E1; border-left: 4px solid #FBBC05; }
+        
+        .ipa-box { font-family: "Segoe UI", "Lucida Sans Unicode", sans-serif; color: #5F6368; font-weight: 500; }
+        .pinyin-box-large { font-size: 1.8rem; line-height: 1.2; font-weight: bold; color: #5F6368; background: #F8F9FA; padding: 4px 16px; border-radius: 12px; display: inline-block; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); border: 2px solid #E8EAED; }
+
+        .score-float { position: fixed; font-weight: 900; color: #FBBC05; text-shadow: 2px 2px 0 #E65100; pointer-events: none; animation: floatUp 0.8s forwards; z-index: 9999; font-size: 2.5rem; }
+
+        .pet-select-card { cursor: pointer; transition: all 0.2s ease; border: 4px solid transparent; }
+        .pet-select-card:active { transform: scale(0.95); }
+        .pet-select-card.selected { border-color: #4285F4; background-color: #E8F0FE; transform: scale(1.05); box-shadow: 0 10px 20px rgba(66, 133, 244, 0.2); }
+        .pet-breathing { animation: breathe 4s infinite ease-in-out; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col md:flex-row text-slate-800 bg-[#F5F7FB]">
+
+    <!-- 左侧：宠物与关卡导航 -->
+    <aside class="w-full md:w-[340px] bg-white shadow-2xl z-20 flex flex-col h-[35vh] md:h-full shrink-0 border-r border-slate-200">
+        <!-- 宠物信息 -->
+        <div class="p-5 bg-gradient-to-br from-[#4285F4] to-[#1967D2] text-white shrink-0 relative overflow-hidden shadow-inner">
+            <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#fff 3px, transparent 3px); background-size: 24px 24px;"></div>
+            <div class="flex items-center gap-4 relative z-10">
+                <div class="w-24 h-24 md:w-28 md:h-28 bg-white/20 rounded-2xl border-4 border-white/40 flex items-center justify-center overflow-hidden shadow-lg shrink-0 relative group bg-white">
+                    <img id="petImg" src="" class="w-full h-full object-cover pet-breathing" alt="Pet">
+                    <button onclick="openPetSelector()" class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" title="更换宠物">
+                        <i class="fas fa-paw text-white text-3xl"></i>
+                    </button>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span id="petTitle" class="text-sm font-bold bg-[#FBBC05] text-[#b45309] px-3 py-1 rounded-full shadow-sm truncate">Lv.0 幼崽期</span>
+                    </div>
+                    <div class="text-4xl font-black font-mono tracking-tight text-white drop-shadow-md mt-1" id="scoreDisplay">0</div>
+                    <div class="text-sm text-blue-100 mt-1 font-medium">离升级还差 <span id="nextLevelDiff" class="font-bold text-[#FBBC05]">100</span> 分</div>
+                </div>
+            </div>
+            <div class="mt-5 h-4 bg-black/20 rounded-full overflow-hidden relative border border-white/20">
+                <div id="expBar" class="h-full bg-gradient-to-r from-[#FBBC05] to-[#F29900] w-0 transition-all duration-700 shadow-[0_0_12px_rgba(251,188,5,0.8)]"></div>
+            </div>
+        </div>
+
+        <!-- 统计区 -->
+        <div class="p-3 grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50 shrink-0">
+            <button onclick="loadMistakeBook()" class="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:bg-red-50 hover:border-red-200 transition-colors active:scale-95 group">
+                <div class="w-10 h-10 rounded-full bg-[#FCE8E6] text-[#EA4335] flex items-center justify-center text-lg group-hover:scale-110 transition-transform"><i class="fas fa-book-open"></i></div>
+                <div class="text-left">
+                    <div class="text-sm text-slate-500 font-bold">错题本</div>
+                    <div class="text-lg text-[#EA4335] font-black" id="mistakeCount">0</div>
+                </div>
+            </button>
+            <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                <div class="w-10 h-10 rounded-full bg-[#E6F4EA] text-[#34A853] flex items-center justify-center text-lg"><i class="fas fa-fire"></i></div>
+                <div class="text-left">
+                    <div class="text-sm text-slate-500 font-bold">最高连击</div>
+                    <div class="text-lg text-[#34A853] font-black" id="maxCombo">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关卡列表 -->
+        <div class="flex-1 overflow-y-auto no-scrollbar bg-white" id="categoryList"></div>
+
+        <!-- 【重置按钮区域】位于侧边栏最底部 -->
+        <div class="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+            <button onclick="openResetModal()" class="w-full py-3 px-4 bg-white border-2 border-[#EA4335] text-[#EA4335] rounded-xl font-bold text-sm hover:bg-[#FCE8E6] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-sm group">
+                <i class="fas fa-trash-alt group-hover:rotate-12 transition-transform"></i> 重置所有进度
+            </button>
+        </div>
+    </aside>
+
+    <!-- 右侧答题区 -->
+    <main class="flex-1 flex flex-col h-[65vh] md:h-full relative overflow-hidden bg-gradient-to-br from-[#E8F0FE] via-[#F0F7F4] to-[#FFF8E1]">
+        <!-- 装饰背景 -->
+        <div class="absolute top-10 left-10 w-64 h-64 bg-white/40 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <header class="bg-white/80 backdrop-blur-md px-6 py-4 flex items-center justify-between shadow-sm shrink-0 z-10 border-b border-white">
+            <h2 id="catTitle" class="text-xl md:text-2xl font-black text-slate-700 truncate flex items-center gap-2">
+                <i class="fas fa-map-signs text-[#FBBC05]"></i> 选择左侧关卡开始
+            </h2>
+            <div class="flex bg-slate-100 p-1.5 rounded-xl shrink-0 shadow-inner">
+                <button onclick="setMode('en-cn')" id="btnEnCn" class="px-4 py-1.5 text-sm md:text-base font-bold rounded-lg shadow bg-white text-[#4285F4] transition-all">英 ➔ 汉</button>
+                <button onclick="setMode('cn-en')" id="btnCnEn" class="px-4 py-1.5 text-sm md:text-base font-bold rounded-lg text-slate-500 hover:text-slate-800 transition-all">汉 ➔ 英</button>
+            </div>
+        </header>
+
+        <!-- 连击提示 -->
+        <div id="comboDisplay" class="absolute top-20 right-8 z-0 pointer-events-none opacity-0 transition-all duration-300 scale-50 rotate-12">
+            <div class="text-5xl md:text-7xl font-black text-[#FBBC05] italic" style="-webkit-text-stroke: 3px #FFF; text-shadow: 0 4px 15px rgba(251,188,5,0.5);">
+                <span id="comboNum">2</span><span class="text-4xl">x</span> COMBO!
+            </div>
+        </div>
+
+        <div class="flex-1 p-4 md:p-8 flex flex-col items-center justify-center w-full relative z-10">
+            <!-- 欢迎卡片 -->
+            <div id="welcome" class="text-center p-10 bg-white rounded-[2rem] shadow-xl border border-white max-w-lg animate-popIn">
+                <div class="w-32 h-32 mx-auto bg-[#E8F0FE] rounded-full flex items-center justify-center mb-6">
+                    
+					<img src="image/boy.png" alt="示例图片">
+                </div>
+				<p class="text-slate-500 mb-8 font-medium text-lg leading-relaxed"><br></p>
+                <h2 class="text-3xl font-black text-slate-800 mb-3">唐一哲宝贝请开始你的挑战吧！</h2>
+				
+				
+                <p class="text-slate-500 mb-8 font-medium text-lg leading-relaxed"><br></p>
+                <div class="text-base text-[#1967D2] bg-[#E8F0FE] px-6 py-3 rounded-xl inline-block font-bold shadow-sm">
+                    <i class="fas fa-hand-pointer mr-2 animate-bounce"></i> 请在左侧选择关卡开始
+                </div>
+            </div>
+
+            <!-- 主答题卡片 -->
+            <div id="card" class="hidden w-full max-w-5xl h-full max-h-[750px] bg-white rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 relative">
+                <div class="h-[45%] bg-gradient-to-b from-slate-50 to-white relative flex flex-col items-center justify-center p-4">
+                    <div class="absolute top-0 left-0 w-full h-2 bg-slate-100">
+                        <div id="progressBar" class="h-full bg-[#34A853] transition-all duration-300 w-0"></div>
+                    </div>
+                    <button id="bookmarkBtn" class="absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10">
+                        <i class="fa-regular fa-star"></i>
+                    </button>
+
+                    <!-- 使用真实图片展示区域，带加载动画 -->
+                    <div class="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] overflow-hidden shadow-lg border-[6px] border-white bg-slate-100 mb-4 shrink-0 relative flex items-center justify-center transition-transform hover:scale-105 group">
+                        <div id="imgLoading" class="absolute inset-0 flex items-center justify-center bg-slate-100 z-0">
+                            <i class="fas fa-spinner fa-spin text-4xl text-slate-300"></i>
+                        </div>
+                        <img id="qImg" src="" class="w-full h-full object-cover z-10 relative opacity-0 transition-opacity duration-300 animate-popIn" alt="单词图解" onload="this.style.opacity=1; document.getElementById('imgLoading').style.display='none'" onerror="this.src='https://api.zcat.cn/gen/image?prompt=error_placeholder'; this.style.opacity=1;">
+                    </div>
+                    
+                    <div class="text-center w-full z-10 px-4 flex-1 flex flex-col justify-center">
+                        <div class="flex items-center justify-center gap-4">
+                            <h1 id="qText" class="text-4xl md:text-6xl font-black text-slate-800 drop-shadow-sm tracking-wide">Word</h1>
+                            <button id="ttsBtn" onclick="playAudio()" class="w-12 h-12 rounded-full bg-[#E8F0FE] text-[#4285F4] shadow-sm flex items-center justify-center hover:bg-[#D2E3FC] active:scale-90 transition-all">
+                                <i class="fas fa-volume-up text-2xl"></i>
+                            </button>
+                        </div>
+                        <div id="qSub" class="min-h-[3rem] mt-2 flex items-center justify-center"></div>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-slate-100 p-4 md:p-8 overflow-y-auto">
+                    <div id="grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 h-full content-center max-w-4xl mx-auto"></div>
+                </div>
+
+                <div class="p-4 bg-white border-t border-slate-200 flex justify-between items-center shrink-0">
+                    <button id="prevBtn" onclick="prevQuestion()" class="px-6 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-lg hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center active:scale-95">
+                        <i class="fas fa-arrow-left mr-2"></i> 上一题
+                    </button>
+                    <button id="nextBtn" onclick="skipQuestion()" class="px-6 py-3 rounded-xl bg-[#E8F0FE] text-[#1967D2] font-bold text-lg hover:bg-[#D2E3FC] transition-colors flex items-center active:scale-95">
+                        <span>跳过本题</span> <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 结算与弹窗部分 -->
+            <div id="result" class="hidden bg-white p-10 rounded-[2rem] shadow-2xl text-center max-w-md border border-slate-100 animate-popIn z-20">
+                <div class="w-24 h-24 mx-auto bg-[#FFF8E1] rounded-full flex items-center justify-center mb-6"><i class="fas fa-trophy text-5xl text-[#FBBC05]"></i></div>
+                <h2 class="text-4xl font-black text-slate-800 mb-4">关卡完成!</h2>
+                <div class="bg-[#F8F9FA] text-slate-700 py-4 px-6 rounded-2xl mb-8 font-bold text-xl border border-slate-200">
+                    本局获得：<span id="levelScore" class="text-[#34A853] text-3xl ml-2">0</span> 分
+                </div>
+                <button onclick="reloadCurrent()" class="w-full bg-[#4285F4] text-white px-8 py-5 rounded-2xl font-black shadow-lg shadow-blue-200 hover:bg-[#1967D2] active:scale-95 transition-all text-2xl">再玩一次</button>
+            </div>
+        </div>
+
+        <div id="levelUpModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+            <div class="bg-white rounded-[2rem] p-10 text-center max-w-md mx-4 shadow-2xl relative overflow-hidden animate-popIn">
+                <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[#FFF8E1] to-white -z-10"></div>
+                <div class="text-xl font-bold text-[#FBBC05] mb-2 tracking-widest"><i class="fas fa-star mr-2"></i>LEVEL UP<i class="fas fa-star ml-2"></i></div>
+                <h2 class="text-4xl font-black text-slate-800 mb-8">伙伴长大了!</h2>
+                <div class="w-48 h-48 mx-auto bg-white rounded-full border-[8px] border-white shadow-xl flex items-center justify-center mb-8 relative">
+                    <div class="absolute inset-0 rounded-full animate-ping bg-[#4285F4] opacity-20"></div>
+                    <img id="newPetImg" class="w-40 h-40 object-contain animate-bounce" src="">
+                </div>
+                <div class="text-xl font-bold text-slate-500 mb-2">成功晋升为</div>
+                <div id="newPetTitle" class="text-3xl font-black text-[#4285F4] mb-10">称号名称</div>
+                <button onclick="closeLevelUp()" class="w-full bg-[#FBBC05] text-white font-black text-2xl py-4 rounded-2xl shadow-lg hover:bg-[#F29900] active:scale-95">太棒了继续！</button>
+            </div>
+        </div>
+
+        <div id="petSelectorModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden backdrop-blur-sm">
+            <div class="bg-white rounded-[2rem] p-6 md:p-10 text-center max-w-3xl w-full mx-4 shadow-2xl relative animate-popIn">
+                <button onclick="closePetSelector()" class="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 active:scale-90 flex items-center justify-center"><i class="fas fa-times text-xl"></i></button>
+                <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-3">领养你的学习伙伴</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 mt-6" id="petOptionsGrid"></div>
+                <button id="confirmPetBtn" onclick="confirmPetSelection()" class="w-full max-w-sm mx-auto bg-[#34A853] text-white font-black text-2xl py-4 rounded-2xl shadow-lg hover:bg-[#208b3a] active:scale-95 disabled:opacity-50" disabled>确认领养</button>
+            </div>
+        </div>
+
+        <!-- 【新增】重置确认弹窗 -->
+        <div id="resetModal" class="fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center hidden backdrop-blur-sm">
+            <div class="bg-white rounded-[2rem] p-8 text-center max-w-md w-full mx-4 shadow-2xl relative animate-popIn border-t-8 border-[#EA4335]">
+                <div class="w-20 h-20 mx-auto bg-[#FCE8E6] rounded-full flex items-center justify-center mb-6">
+                    <i class="fas fa-exclamation-triangle text-4xl text-[#EA4335]"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800 mb-2">确定要重置进度吗？</h2>
+                <p class="text-slate-500 mb-6 text-sm leading-relaxed">
+                    此操作将清空所有积分、等级、错题本和收藏夹。<br>
+                    宠物将变回初始形态，且<strong>无法恢复</strong>。
+                </p>
+                <div class="flex gap-3">
+                    <button onclick="closeResetModal()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-200 active:scale-95 transition-all">取消</button>
+                    <button onclick="confirmReset()" class="flex-1 bg-[#EA4335] text-white font-bold py-3 rounded-xl hover:bg-[#D93025] active:scale-95 transition-all shadow-lg shadow-red-200">确认重置</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const PET_TYPES = [
+            { id: 'dog', name: '忠诚小狗', stages: ['https://api.zcat.cn/udata/716492/png/0b3777d45752522c1cfc5aafcb8c7c58.png', 'https://api.zcat.cn/udata/716492/png/572b84a5360253e4e1cd3d7fbe12d16f.png', 'https://api.zcat.cn/udata/716492/png/1231b75a5d2bfd33e36cd21ede996ffa.png', 'https://api.zcat.cn/udata/716492/png/82b87331930cfc516274fb85b444d1a1.png'] },
+            { id: 'rabbit', name: '聪明小兔', stages: ['https://api.zcat.cn/udata/716492/png/f571ac459c81b1577f35cb5a8fa99eaf.png', 'https://api.zcat.cn/udata/716492/png/5709d55b88dd1d214a4ae07bad076fbd.png', 'https://api.zcat.cn/udata/716492/png/124a16c6c52ded07478c37cf24124aee.png', 'https://api.zcat.cn/udata/716492/png/2f5767110110513967722ac798a59fc4.png'] },
+            { id: 'cat', name: '傲娇小猫', stages: ['https://api.zcat.cn/udata/716492/png/5ca7058beedbedec2bc94db843f7f5be.png', 'https://api.zcat.cn/udata/716492/png/a24eb6f915e9cb1a6aee35d12e1eae2b.png', 'https://api.zcat.cn/udata/716492/png/db738f5a6f1c34d0be3858cfaed10f50.png', 'https://api.zcat.cn/udata/716492/png/4370a1c6c8d7c105fb15f86d250f60e7.png'] },
+            { id: 'dino', name: '萌趣恐龙', stages: ['https://api.zcat.cn/udata/716492/png/c72db75516a8f39f39d99a8d00a5acf2.png', 'https://api.zcat.cn/udata/716492/png/39659d2abadfc6104ac470f04ca6f0c6.png', 'https://api.zcat.cn/udata/716492/png/582b9a41549ebcfb171eccf649af717a.png', 'https://api.zcat.cn/udata/716492/png/4b163721c5cb589744dbfe5c68e0e32c.png'] }
+        ];
+
+        const LEVELS = [
+            { min: 0, name: "幼崽期", stageIndex: 0 }, { min: 200, name: "学生期", stageIndex: 1 },
+            { min: 800, name: "学霸期", stageIndex: 2 }, { min: 2000, name: "超能完全体", stageIndex: 3 }
+        ];
+
+        // ==========================================
+        // 【完整 370+ 核心词库】全量替换为 AI 绘图 API 链接
+        // ==========================================
+        const rawData = 
+[
+  {
+    title: "🎨 (1) 颜色 (Color)",
+    items: [
+      { en: "red", cn: "红色", ipa: "/red/", img: "image/color/color_red.png" },
+      { en: "blue", cn: "蓝色", ipa: "/bluː/", img: "image/color/color_blue.png" },
+      { en: "green", cn: "绿色", ipa: "/ɡriːn/", img: "image/color/color_green.png" },
+      { en: "yellow", cn: "黄色", ipa: "/ˈjeləʊ/", img: "image/color/color_yellow.png" },
+      { en: "orange", cn: "橙色", ipa: "/ˈɒrɪndʒ/", img: "image/color/color_orange.png" },
+      { en: "purple", cn: "紫色", ipa: "/ˈpɜːpl/", img: "image/color/color_purple.png" },
+      { en: "pink", cn: "粉色", ipa: "/pɪŋk/", img: "image/color/color_pink.png" },
+      { en: "brown", cn: "棕色", ipa: "/braʊn/", img: "image/color/color_brown.png" },
+      { en: "black", cn: "黑色", ipa: "/blæk/", img: "image/color/color_black.png" },
+      { en: "white", cn: "白色", ipa: "/waɪt/", img: "image/color/color_white.png" },
+      { en: "gray", cn: "灰色", ipa: "/ɡreɪ/", img: "image/color/color_gray.png" },
+      { en: "gold", cn: "金色", ipa: "/ɡəʊld/", img: "image/color/color_gold.png" },
+      { en: "silver", cn: "银色", ipa: "/ˈsɪlvə/", img: "image/color/color_silver.png" }
+    ]
+  },
+  {
+    title: "⛅ (2) 天气 (Weather)",
+    items: [
+      { en: "sunny", cn: "晴朗的", ipa: "/ˈsʌni/", img: "image/weather/weather_sunny.png" },
+      { en: "cloudy", cn: "多云的", ipa: "/ˈklaʊdi/", img: "image/weather/weather_cloudy.png" },
+      { en: "rainy", cn: "下雨的", ipa: "/ˈreɪni/", img: "image/weather/weather_rainy.png" },
+      { en: "snowy", cn: "下雪的", ipa: "/ˈsnəʊi/", img: "image/weather/weather_snowy.png" },
+      { en: "windy", cn: "有风的", ipa: "/ˈwɪndi/", img: "image/weather/weather_windy.png" },
+      { en: "foggy", cn: "有雾的", ipa: "/ˈfɒɡi/", img: "image/weather/weather_foggy.png" },
+      { en: "stormy", cn: "暴风雨的", ipa: "/ˈstɔːmi/", img: "image/weather/weather_stormy.png" },
+      { en: "thunderstorm", cn: "雷暴", ipa: "/ˈθʌndəstɔːm/", img: "image/weather/weather_thunderstorm.png" },
+      { en: "hail", cn: "冰雹", ipa: "/heɪl/", img: "image/weather/weather_hail.png" },
+      { en: "lightning", cn: "闪电", ipa: "/ˈlaɪtnɪŋ/", img: "image/weather/weather_lightning.png" },
+      { en: "hot", cn: "热的", ipa: "/hɒt/", img: "image/weather/weather_hot.png" },
+      { en: "cold", cn: "冷的", ipa: "/kəʊld/", img: "image/weather/weather_cold.png" },
+      { en: "warm", cn: "温暖的", ipa: "/wɔːm/", img: "image/weather/weather_warm.png" },
+      { en: "cool", cn: "凉爽的", ipa: "/kuːl/", img: "image/weather/weather_cool.png" },
+      { en: "freezing", cn: "极冷的", ipa: "/ˈfriːzɪŋ/", img: "image/weather/weather_freezing.png" },
+      { en: "humid", cn: "潮湿的", ipa: "/ˈhjuːmɪd/", img: "image/weather/weather_humid.png" },
+      { en: "dry", cn: "干燥的", ipa: "/draɪ/", img: "image/weather/weather_dry.png" },
+      { en: "drizzle", cn: "毛毛雨", ipa: "/ˈdrɪzl/", img: "image/weather/weather_drizzle.png" },
+      { en: "shower", cn: "阵雨", ipa: "/ˈʃaʊə/", img: "image/weather/weather_shower.png" },
+      { en: "breeze", cn: "微风", ipa: "/briːz/", img: "image/weather/weather_breeze.png" },
+      { en: "gale", cn: "大风", ipa: "/ɡeɪl/", img: "image/weather/weather_gale.png" },
+      { en: "hurricane", cn: "飓风", ipa: "/ˈhʌrɪkən/", img: "image/weather/weather_hurricane.png" },
+      { en: "typhoon", cn: "台风", ipa: "/taɪˈfuːn/", img: "image/weather/weather_typhoon.png" },
+      { en: "tornado", cn: "龙卷风", ipa: "/tɔːneɪdəʊ/", img: "image/weather/weather_tornado.png" },
+      { en: "blizzard", cn: "暴风雪", ipa: "/ˈblɪzəd/", img: "image/weather/weather_blizzard.png" },
+      { en: "overcast", cn: "阴天的", ipa: "/ˌəʊvəˈkɑːst/", img: "image/weather/weather_overcast.png" },
+      { en: "mist", cn: "薄雾", ipa: "/mɪst/", img: "image/weather/weather_mist.png" },
+      { en: "frost", cn: "霜", ipa: "/frɒst/", img: "image/weather/weather_frost.png" }
+    ]
+  },
+  {
+    title: "🌌 (3) 天体 (Celestial)",
+    items: [
+      { en: "sun", cn: "太阳", ipa: "/sʌn/", img: "image/celestial/celestial_sun.png" },
+      { en: "star", cn: "星星", ipa: "/stɑː/", img: "image/celestial/celestial_star.png" },
+      { en: "moon", cn: "月球", ipa: "/muːn/", img: "image/celestial/celestial_moon.png" },
+      { en: "sky", cn: "天空", ipa: "/skaɪ/", img: "image/celestial/celestial_sky.png" },
+      { en: "cloud", cn: "云", ipa: "/klaʊd/", img: "image/celestial/celestial_cloud.png" },
+      { en: "snow", cn: "雪", ipa: "/snəʊ/", img: "image/celestial/celestial_snow.png" },
+      { en: "wind", cn: "风", ipa: "/wɪnd/", img: "image/celestial/celestial_wind.png" }
+    ]
+  },
+  {
+    title: "👨‍👩‍👧‍👦 (4) 家庭 (Family)",
+    items: [
+      { en: "father", cn: "父亲", ipa: "/ˈfɑːðə/", img: "image/family/family_father.png" },
+      { en: "mother", cn: "母亲", ipa: "/ˈmʌðə/", img: "image/family/family_mother.png" },
+      { en: "son", cn: "儿子", ipa: "/sʌn/", img: "image/family/family_son.png" },
+      { en: "daughter", cn: "女儿", ipa: "/ˈdɔːtə/", img: "image/family/family_daughter.png" },
+      { en: "brother", cn: "兄弟", ipa: "/ˈbrʌðə/", img: "image/family/family_brother.png" },
+      { en: "sister", cn: "姐妹", ipa: "/ˈsɪstə/", img: "image/family/family_sister.png" },
+      { en: "husband", cn: "丈夫", ipa: "/ˈhʌzbənd/", img: "image/family/family_husband.png" },
+      { en: "wife", cn: "妻子", ipa: "/waɪf/", img: "image/family/family_wife.png" },
+      { en: "grandfather", cn: "祖父", ipa: "/ˈɡrænfɑːðə/", img: "image/family/family_grandfather.png" },
+      { en: "grandmother", cn: "祖母", ipa: "/ˈɡrænmʌðə/", img: "image/family/family_grandmother.png" },
+      { en: "grandson", cn: "孙子", ipa: "/ˈɡrænsʌn/", img: "image/family/family_grandson.png" },
+      { en: "granddaughter", cn: "孙女", ipa: "/ˈɡrændɔːtə/", img: "image/family/family_granddaughter.png" },
+      { en: "uncle", cn: "叔叔", ipa: "/ˈʌŋkl/", img: "image/family/family_uncle.png" },
+      { en: "aunt", cn: "阿姨", ipa: "/ɑːnt/", img: "image/family/family_aunt.png" },
+      { en: "cousin", cn: "堂亲", ipa: "/ˈkʌzn/", img: "image/family/family_cousin.png" },
+      { en: "nephew", cn: "侄子", ipa: "/ˈnevjuː/", img: "image/family/family_nephew.png" },
+      { en: "niece", cn: "侄女", ipa: "/niːs/", img: "image/family/family_niece.png" }
+    ]
+  },
+  {
+    title: "👕 (5) 服装 (Clothes)",
+    items: [
+      { en: "shirt", cn: "衬衫", ipa: "/ʃɜːt/", img: "image/clothes/clothes_shirt.png" },
+      { en: "t-shirt", cn: "T恤", ipa: "/ˈtiːʃɜːt/", img: "image/clothes/" },
+      { en: "blouse", cn: "女式衬衫", ipa: "/blaʊz/", img: "image/clothes/clothes_blouse.png" },
+      { en: "pants", cn: "长裤", ipa: "/pænts/", img: "image/clothes/clothes_pants.png" },
+      { en: "jeans", cn: "牛仔裤", ipa: "/dʒiːnz/", img: "image/clothes/clothes_jeans.png" },
+      { en: "shorts", cn: "短裤", ipa: "/ʃɔːts/", img: "image/clothes/clothes_shorts.png" },
+      { en: "skirt", cn: "裙子", ipa: "/skɜːt/", img: "image/clothes/clothes_skirt.png" },
+      { en: "dress", cn: "连衣裙", ipa: "/dres/", img: "image/clothes/clothes_dress.png" },
+      { en: "sweater", cn: "毛衣", ipa: "/ˈswetə/", img: "image/clothes/clothes_sweater.png" },
+      { en: "jacket", cn: "夹克", ipa: "/ˈdʒækɪt/", img: "image/clothes/clothes_jacket.png" },
+      { en: "coat", cn: "大衣", ipa: "/kəʊt/", img: "image/clothes/clothes_coat.png" },
+      { en: "raincoat", cn: "雨衣", ipa: "/ˈreɪnkəʊt/", img: "image/clothes/clothes_raincoat.png" },
+      { en: "down jacket", cn: "羽绒服", ipa: "/daʊn ˈdʒækɪt/", img: "image/clothes/clothes_down_jacket.png" },
+      { en: "shoes", cn: "鞋子", ipa: "/ʃuːz/", img: "image/clothes/clothes_shoes.png" },
+      { en: "sneakers", cn: "运动鞋", ipa: "/ˈsniːkəz/", img: "image/clothes/clothes_sneakers.png" },
+      { en: "boots", cn: "靴子", ipa: "/buːts/", img: "image/clothes/clothes_boots.png" },
+      { en: "socks", cn: "袜子", ipa: "/sɒks/", img: "image/clothes/clothes_socks.png" },
+      { en: "stockings", cn: "长筒袜", ipa: "/ˈstɒkɪŋz/", img: "image/clothes/clothes_stockings.png" },
+      { en: "scarf", cn: "围巾", ipa: "/skɑːf/", img: "image/clothes/clothes_scarf.png" },
+      { en: "gloves", cn: "手套", ipa: "/ɡlʌvz/", img: "image/clothes/clothes_gloves.png" },
+      { en: "hat", cn: "帽子", ipa: "/hæt/", img: "image/clothes/clothes_hat.png" },
+      { en: "cap", cn: "棒球帽", ipa: "/kæp/", img: "image/clothes/clothes_cap.png" },
+      { en: "suit", cn: "西装", ipa: "/suːt/", img: "image/clothes/clothes_suit.png" },
+      { en: "tie", cn: "领带", ipa: "/taɪ/", img: "image/clothes/clothes_tie.png" },
+      { en: "bow tie", cn: "领结", ipa: "/bəʊ taɪ/", img: "image/clothes/clothes_bow_tie.png" },
+      { en: "vest", cn: "马甲", ipa: "/vest/", img: "image/clothes/clothes_vest.png" },
+      { en: "uniform", cn: "制服", ipa: "/ˈjuːnɪfɔːm/", img: "image/clothes/clothes_uniform.png" },
+      { en: "belt", cn: "腰带", ipa: "/belt/", img: "image/clothes/clothes_belt.png" },
+      { en: "zipper", cn: "拉链", ipa: "/ˈzɪpə/", img: "image/clothes/clothes_zipper.png" },
+      { en: "button", cn: "纽扣", ipa: "/ˈbʌtn/", img: "image/clothes/clothes_button.png" },
+      { en: "pocket", cn: "口袋", ipa: "/ˈpɒkɪt/", img: "image/clothes/clothes_pocket.png" },
+      { en: "size", cn: "尺码", ipa: "/saɪz/", img: "image/clothes/clothes_size.png" }
+    ]
+  },
+  {
+    title: "📚 (6) 学校 (School)",
+    items: [
+      { en: "pen", cn: "钢笔", ipa: "/pen/", img: "image/school/school_pen.png" },
+      { en: "pencil", cn: "铅笔", ipa: "/ˈpensl/", img: "image/school/school_pencil.png" },
+      { en: "eraser", cn: "橡皮", ipa: "/ɪˈreɪzə/", img: "image/school/school_eraser.png" },
+      { en: "ruler", cn: "尺子", ipa: "/ˈruːlə/", img: "image/school/school_ruler.png" },
+      { en: "notebook", cn: "笔记本", ipa: "/ˈnəʊtbʊk/", img: "image/school/school_notebook.png" },
+      { en: "textbook", cn: "教科书", ipa: "/ˈtekstbʊk/", img: "image/school/school_textbook.png" },
+      { en: "dictionary", cn: "词典", ipa: "/ˈdɪkʃənri/", img: "image/school/school_dictionary.png" },
+      { en: "calculator", cn: "计算器", ipa: "/ˈkælkjuleɪtə/", img: "image/school/school_calculator.png" },
+      { en: "highlighter", cn: "荧光笔", ipa: "/ˈhaɪlaɪtə/", img: "image/school/school_highlighter.png" },
+      { en: "glue", cn: "胶水", ipa: "/ɡluː/", img: "image/school/school_glue.png" },
+      { en: "scissors", cn: "剪刀", ipa: "/ˈsɪzəz/", img: "image/school/school_scissors.png" },
+      { en: "stapler", cn: "订书机", ipa: "/ˈsteɪplə/", img: "image/school/school_stapler.png" },
+      { en: "blackboard", cn: "黑板", ipa: "/ˈblækbɔːd/", img: "image/school/school_blackboard.png" },
+      { en: "whiteboard", cn: "白板", ipa: "/ˈwaɪtbɔːd/", img: "image/school/school_whiteboard.png" },
+      { en: "chalk", cn: "粉笔", ipa: "/tʃɔːk/", img: "image/school/school_chalk.png" },
+      { en: "desk", cn: "课桌", ipa: "/desk/", img: "image/school/school_desk.png" },
+      { en: "chair", cn: "椅子", ipa: "/tʃeə/", img: "image/school/school_chair.png" },
+      { en: "bookshelf", cn: "书架", ipa: "/ˈbʊkʃelf/", img: "image/school/school_bookshelf.png" },
+      { en: "clock", cn: "时钟", ipa: "/klɒk/", img: "image/school/school_clock.png" },
+      { en: "projector", cn: "投影仪", ipa: "/prəˈdʒektə/", img: "image/school/school_projector.png" },
+      { en: "computer", cn: "电脑", ipa: "/kəmˈpjuːtə/", img: "image/school/school_computer.png" },
+      { en: "classroom", cn: "教室", ipa: "/ˈklɑːsruːm/", img: "image/school/school_classroom.png" },
+      { en: "library", cn: "图书馆", ipa: "/ˈlaɪbrəri/", img: "image/school/school_library.png" },
+      { en: "laboratory", cn: "实验室", ipa: "/ləˈbɒrətri/", img: "image/school/school_laboratory.png" },
+      { en: "gym", cn: "体育馆", ipa: "/dʒɪm/", img: "image/school/school_gym.png" },
+      { en: "playground", cn: "操场", ipa: "/ˈpleɪɡraʊnd/", img: "image/school/school_playground.png" },
+      { en: "cafeteria", cn: "食堂", ipa: "/ˌkæfəˈtɪəriə/", img: "image/school/school_cafeteria.png" },
+      { en: "office", cn: "办公室", ipa: "/ˈɒfɪs/", img: "image/school/school_office.png" },
+      { en: "toilet", cn: "厕所", ipa: "/ˈtɔɪlɪt/", img: "image/school/school_toilet.png" },
+      { en: "timetable", cn: "课程表", ipa: "/ˈtaɪmteɪbl/", img: "image/school/school_timetable.png" },
+      { en: "homework", cn: "家庭作业", ipa: "/ˈhəʊmwɜːk/", img: "image/school/school_homework.png" }
+    ]
+  },
+  {
+    title: "🍎 (7) 水果 (Fruits)",
+    items: [
+      { en: "apple", cn: "苹果", ipa: "/ˈæpl/", img: "image/fruits/fruits_apple.png" },
+      { en: "banana", cn: "香蕉", ipa: "/bəˈnɑːnə/", img: "image/fruits/fruits_banana.png" },
+      { en: "orange", cn: "橙子", ipa: "/ˈɒrɪndʒ/", img: "image/fruits/fruits_orange.png" },
+      { en: "pear", cn: "梨", ipa: "/peə/", img: "image/fruits/fruits_pear.png" },
+      { en: "peach", cn: "桃子", ipa: "/piːtʃ/", img: "image/fruits/fruits_peach.png" },
+      { en: "grape", cn: "葡萄", ipa: "/ɡreɪp/", img: "image/fruits/fruits_grape.png" },
+      { en: "strawberry", cn: "草莓", ipa: "/ˈstrɔːbəri/", img: "image/fruits/fruits_strawberry.png" },
+      { en: "watermelon", cn: "西瓜", ipa: "/ˈwɔːtəmelən/", img: "image/fruits/fruits_watermelon.png" },
+      { en: "pineapple", cn: "菠萝", ipa: "/ˈpaɪnæpl/", img: "image/fruits/fruits_pineapple.png" },
+      { en: "mango", cn: "芒果", ipa: "/ˈmæŋɡəʊ/", img: "image/fruits/fruits_mango.png" },
+      { en: "lemon", cn: "柠檬", ipa: "/ˈlemən/", img: "image/fruits/fruits_lemon.png" },
+      { en: "lime", cn: "青柠", ipa: "/laɪm/", img: "image/fruits/fruits_lime.png" },
+      { en: "grapefruit", cn: "葡萄柚", ipa: "/ˈɡreɪpfruːt/", img: "image/fruits/fruits_grapefruit.png" },
+      { en: "coconut", cn: "椰子", ipa: "/ˈkəʊkənʌt/", img: "image/fruits/fruits_coconut.png" },
+      { en: "kiwi", cn: "猕猴桃", ipa: "/ˈkiːwiː/", img: "image/fruits/fruits_kiwi.png" },
+      { en: "blueberry", cn: "蓝莓", ipa: "/ˈbluːbəri/", img: "image/fruits/fruits_blueberry.png" },
+      { en: "cherry", cn: "樱桃", ipa: "/ˈtʃeri/", img: "image/fruits/fruits_cherry.png" }
+    ]
+  },
+  {
+    title: "🐶 (8) 动物 (Animals)",
+    items: [
+      { en: "dog", cn: "狗", ipa: "/dɒɡ/", img: "image/animals/animals_dog.png" },
+      { en: "cat", cn: "猫", ipa: "/kæt/", img: "image/animals/animals_cat.png" },
+      { en: "rabbit", cn: "兔子", ipa: "/ˈræbɪt/", img: "image/animals/animals_rabbit.png" },
+      { en: "hamster", cn: "仓鼠", ipa: "/ˈhæmstə/", img: "image/animals/animals_hamster.png" },
+      { en: "cow", cn: "奶牛", ipa: "/kaʊ/", img: "image/animals/animals_cow.png" },
+      { en: "pig", cn: "猪", ipa: "/pɪɡ/", img: "image/animals/animals_pig.png" },
+      { en: "sheep", cn: "绵羊", ipa: "/ʃiːp/", img: "image/animals/animals_sheep.png" },
+      { en: "goat", cn: "山羊", ipa: "/ɡəʊt/", img: "image/animals/animals_goat.png" },
+      { en: "horse", cn: "马", ipa: "/hɔːs/", img: "image/animals/animals_horse.png" },
+      { en: "duck", cn: "鸭子", ipa: "/dʌk/", img: "image/animals/animals_duck.png" },
+      { en: "lion", cn: "狮子", ipa: "/ˈlaɪən/", img: "image/animals/animals_lion.png" },
+      { en: "tiger", cn: "老虎", ipa: "/ˈtaɪɡə/", img: "image/animals/animals_tiger.png" },
+      { en: "elephant", cn: "大象", ipa: "/ˈelɪfənt/", img: "image/animals/animals_elephant.png" },
+      { en: "giraffe", cn: "长颈鹿", ipa: "/dʒəˈrɑːf/", img: "image/animals/animals_giraffe.png" },
+      { en: "zebra", cn: "斑马", ipa: "/ˈzebrə/", img: "image/animals/animals_zebra.png" },
+      { en: "monkey", cn: "猴子", ipa: "/ˈmʌŋki/", img: "image/animals/animals_monkey.png" },
+      { en: "wolf", cn: "狼", ipa: "/wʊlf/", img: "image/animals/animals_wolf.png" },
+      { en: "fox", cn: "狐狸", ipa: "/fɒks/", img: "image/animals/animals_fox.png" },
+      { en: "bear", cn: "熊", ipa: "/beə/", img: "image/animals/animals_bear.png" },
+      { en: "deer", cn: "鹿", ipa: "/dɪə/", img: "image/animals/animals_deer.png" },
+      { en: "bird", cn: "鸟", ipa: "/bɜːd/", img: "image/animals/animals_bird.png" },
+      { en: "eagle", cn: "鹰", ipa: "/ˈiːɡl/", img: "image/animals/animals_eagle.png" },
+      { en: "owl", cn: "猫头鹰", ipa: "/aʊl/", img: "image/animals/animals_owl.png" },
+      { en: "parrot", cn: "鹦鹉", ipa: "/ˈpærət/", img: "image/animals/animals_parrot.png" },
+      { en: "pigeon", cn: "鸽子", ipa: "/ˈpɪdʒɪn/", img: "image/animals/animals_pigeon.png" },
+      { en: "sparrow", cn: "麻雀", ipa: "/ˈspærəʊ/", img: "image/animals/animals_sparrow.png" },
+      { en: "swan", cn: "天鹅", ipa: "/swɒn/", img: "image/animals/animals_swan.png" },
+      { en: "peacock", cn: "孔雀", ipa: "/ˈpiːkɒk/", img: "image/animals/animals_peacock.png" },
+      { en: "fish", cn: "鱼", ipa: "/fɪʃ/", img: "image/animals/animals_fish.png" },
+      { en: "shark", cn: "鲨鱼", ipa: "/ʃɑːk/", img: "image/animals/animals_shark.png" },
+      { en: "dolphin", cn: "海豚", ipa: "/ˈdɒlfɪn/", img: "image/animals/animals_dolphin.png" },
+      { en: "whale", cn: "鲸鱼", ipa: "/weɪl/", img: "image/animals/animals_whale.png" },
+      { en: "octopus", cn: "章鱼", ipa: "/ˈɒktəpəs/", img: "image/animals/animals_octopus.png" },
+      { en: "crab", cn: "螃蟹", ipa: "/kræb/", img: "image/animals/animals_crab.png" },
+      { en: "jellyfish", cn: "水母", ipa: "/ˈdʒelifɪʃ/", img: "image/animals/animals_jellyfish.png" },
+      { en: "seal", cn: "海豹", ipa: "/siːl/", img: "image/animals/animals_seal.png" },
+      { en: "ant", cn: "蚂蚁", ipa: "/ænt/", img: "image/animals/animals_ant.png" },
+      { en: "bee", cn: "蜜蜂", ipa: "/biː/", img: "image/animals/animals_bee.png" },
+      { en: "butterfly", cn: "蝴蝶", ipa: "/ˈbʌtəflaɪ/", img: "image/animals/animals_butterfly.png" },
+      { en: "dragonfly", cn: "蜻蜓", ipa: "/ˈdræɡənflaɪ/", img: "image/animals/animals_dragonfly.png" },
+      { en: "mosquito", cn: "蚊子", ipa: "/məˈskiːtəʊ/", img: "image/animals/animals_mosquito.png" },
+      { en: "fly", cn: "苍蝇", ipa: "/flaɪ/", img: "image/animals/animals_fly.png" },
+      { en: "spider", cn: "蜘蛛", ipa: "/ˈspaɪdə/", img: "image/animals/animals_spider.png" },
+      { en: "ladybug", cn: "瓢虫", ipa: "/ˈleɪdibʌɡ/", img: "image/animals/animals_ladybug.png" },
+      { en: "grasshopper", cn: "蚱蜢", ipa: "/ˈɡrɑːshɒpə/", img: "image/animals/animals_grasshopper.png" },
+      { en: "cockroach", cn: "蟑螂", ipa: "/ˈkɒkrəʊtʃ/", img: "image/animals/animals_cockroach.png" },
+      { en: "snake", cn: "蛇", ipa: "/sneɪk/", img: "image/animals/animals_snake.png" },
+      { en: "turtle", cn: "乌龟", ipa: "/ˈtɜːtl/", img: "image/animals/animals_turtle.png" },
+      { en: "frog", cn: "青蛙", ipa: "/frɒɡ/", img: "image/animals/animals_frog.png" },
+      { en: "crocodile", cn: "鳄鱼", ipa: "/ˈkrɒkədaɪl/", img: "image/animals/animals_crocodile.png" },
+      { en: "lizard", cn: "蜥蜴", ipa: "/ˈlɪzəd/", img: "image/animals/animals_lizard.png" }
+    ]
+  },
+  {
+    title: "🌳 (9) 植物 (Plants)",
+    items: [
+      { en: "tree", cn: "树", ipa: "/triː/", img: "image/plants/plants_tree.png" },
+      { en: "rose", cn: "玫瑰", ipa: "/rəʊz/", img: "image/plants/plants_rose.png" },
+      { en: "tulip", cn: "郁金香", ipa: "/ˈtjuːlɪp/", img: "image/plants/plants_tulip.png" },
+      { en: "sunflower", cn: "向日葵", ipa: "/ˈsʌnflaʊə/", img: "image/plants/plants_sunflower.png" },
+      { en: "lily", cn: "百合", ipa: "/ˈlɪli/", img: "image/plants/plants_lily.png" },
+      { en: "grass", cn: "草", ipa: "/ɡrɑːs/", img: "image/plants/plants_grass.png" },
+      { en: "bamboo", cn: "竹子", ipa: "/ˌbæmˈbuː/", img: "image/plants/plants_bamboo.png" },
+      { en: "fern", cn: "蕨类", ipa: "/fɜːn/", img: "image/plants/plants_fern.png" },
+      { en: "cactus", cn: "仙人掌", ipa: "/ˈkæktəs/", img: "image/plants/plants_cactus.png" },
+      { en: "mushroom", cn: "蘑菇", ipa: "/ˈmʌʃrʊm/", img: "image/plants/plants_mushroom.png" },
+      { en: "carrot", cn: "胡萝卜", ipa: "/ˈkærət/", img: "image/plants/plants_carrot.png" },
+      { en: "tomato", cn: "番茄", ipa: "/təˈmɑːtəʊ/", img: "image/plants/plants_tomato.png" },
+      { en: "potato", cn: "土豆", ipa: "/pəˈteɪtəʊ/", img: "image/plants/plants_potato.png" },
+      { en: "cucumber", cn: "黄瓜", ipa: "/ˈkjuːkʌmbə/", img: "image/plants/plants_cucumber.png" },
+      { en: "onion", cn: "洋葱", ipa: "/ˈʌnjən/", img: "image/plants/plants_onion.png" },
+      { en: "cabbage", cn: "卷心菜", ipa: "/ˈkæbɪdʒ/", img: "image/plants/plants_cabbage.png" },
+      { en: "spinach", cn: "菠菜", ipa: "/ˈspɪnɪtʃ/", img: "image/plants/plants_spinach.png" }
+    ]
+  },
+  {
+    title: "🍖 (10) 肉类与味道 (Meat)",
+    items: [
+      { en: "pork", cn: "猪肉", ipa: "/pɔːk/", img: "image/meat/meat_pork.png" },
+      { en: "beef", cn: "牛肉", ipa: "/biːf/", img: "image/meat/meat_beef.png" },
+      { en: "chicken", cn: "鸡肉", ipa: "/ˈtʃɪkɪn/", img: "image/meat/meat_chicken.png" },
+      { en: "lamb", cn: "羊肉", ipa: "/læm/", img: "image/meat/meat_lamb.png" },
+      { en: "duck", cn: "鸭肉", ipa: "/dʌk/", img: "image/meat/meat_duck.png" },
+      { en: "fish", cn: "鱼肉", ipa: "/fɪʃ/", img: "image/meat/meat_fish.png" },
+      { en: "shrimp", cn: "虾", ipa: "/ʃrɪmp/", img: "image/meat/meat_shrimp.png" },
+      { en: "crab", cn: "螃蟹肉", ipa: "/kræb/", img: "image/meat/meat_crab.png" },
+      { en: "steak", cn: "牛排", ipa: "/steɪk/", img: "image/meat/meat_steak.png" },
+      { en: "ribs", cn: "排骨", ipa: "/rɪbz/", img: "image/meat/meat_ribs.png" },
+      { en: "bacon", cn: "培根", ipa: "/ˈbeɪkən/", img: "image/meat/meat_bacon.png" },
+      { en: "sausage", cn: "香肠", ipa: "/ˈsɒsɪdʒ/", img: "image/meat/meat_sausage.png" },
+      { en: "ham", cn: "火腿", ipa: "/hæm/", img: "image/meat/meat_ham.png" },
+      { en: "hot dog", cn: "热狗", ipa: "/hɒt dɒɡ/", img: "image/meat/meat_hot_dog.png" },
+      { en: "sweet", cn: "甜的", ipa: "/swiːt/", img: "image/meat/meat_sweet.png" },
+      { en: "sour", cn: "酸的", ipa: "/ˈsaʊə/", img: "image/meat/meat_sour.png" },
+      { en: "bitter", cn: "苦的", ipa: "/ˈbɪtə/", img: "image/meat/meat_bitter.png" },
+      { en: "salty", cn: "咸的", ipa: "/ˈsɔːlti/", img: "image/meat/meat_salty.png" },
+      { en: "spicy", cn: "辣的", ipa: "/ˈspaɪsi/", img: "image/meat/meat_spicy.png" }
+    ]
+  },
+  {
+    title: "✋ (11) 口感 (Texture)",
+    items: [
+      { en: "tender", cn: "嫩的", ipa: "/ˈtendə/", img: "image/texture/texture_tender.png" },
+      { en: "tough", cn: "硬的", ipa: "/tʌf/", img: "image/texture/texture_tough.png" },
+      { en: "juicy", cn: "多汁的", ipa: "/ˈdʒuːsi/", img: "image/texture/texture_juicy.png" },
+      { en: "dry", cn: "干的", ipa: "/draɪ/", img: "image/texture/texture_dry.png" }
+    ]
+  },
+  {
+    title: "🕒 (12) 时间 (Time)",
+    items: [
+      { en: "second", cn: "秒", ipa: "/ˈsekənd/", img: "image/time/time_second.png" },
+      { en: "minute", cn: "分钟", ipa: "/ˈmɪnɪt/", img: "image/time/time_minute.png" },
+      { en: "hour", cn: "小时", ipa: "/ˈaʊə/", img: "image/time/time_hour.png" },
+      { en: "day", cn: "天", ipa: "/deɪ/", img: "image/time/time_day.png" },
+      { en: "week", cn: "周", ipa: "/wiːk/", img: "image/time/time_week.png" },
+      { en: "month", cn: "月", ipa: "/mʌnθ/", img: "image/time/time_month.png" },
+      { en: "year", cn: "年", ipa: "/jɪə/", img: "image/time/time_year.png" },
+      { en: "decade", cn: "十年", ipa: "/ˈdekeɪd/", img: "image/time/time_decade.png" },
+      { en: "century", cn: "世纪", ipa: "/ˈsentʃəri/", img: "image/time/time_century.png" },
+      { en: "morning", cn: "早晨", ipa: "/ˈmɔːnɪŋ/", img: "image/time/time_morning.png" },
+      { en: "noon", cn: "中午", ipa: "/nuːn/", img: "image/time/time_noon.png" },
+      { en: "afternoon", cn: "下午", ipa: "/ˌɑːftəˈnuːn/", img: "image/time/time_afternoon.png" },
+      { en: "evening", cn: "傍晚", ipa: "/ˈiːvnɪŋ/", img: "image/time/time_evening.png" },
+      { en: "night", cn: "夜晚", ipa: "/naɪt/", img: "image/time/time_night.png" },
+      { en: "midnight", cn: "午夜", ipa: "/ˈmɪdnaɪt/", img: "image/time/time_midnight.png" },
+      { en: "Monday", cn: "周一", ipa: "/ˈmʌndeɪ/", img: "image/time/time_Monday.png" },
+      { en: "Tuesday", cn: "周二", ipa: "/ˈtjuːzdeɪ/", img: "image/time/time_Tuesday.png" },
+      { en: "Wednesday", cn: "周三", ipa: "/ˈwenzdeɪ/", img: "image/time/time_Wednesday.png" },
+      { en: "Thursday", cn: "周四", ipa: "/ˈθɜːzdeɪ/", img: "image/time/time_Thursday.png" },
+      { en: "Friday", cn: "周五", ipa: "/ˈfraɪdeɪ/", img: "image/time/time_Friday.png" },
+      { en: "Saturday", cn: "周六", ipa: "/ˈsætədeɪ/", img: "image/time/time_Saturday.png" },
+      { en: "Sunday", cn: "周日", ipa: "/ˈsʌndeɪ/", img: "image/time/time_Sunday.png" },
+      { en: "January", cn: "一月", ipa: "/ˈdʒænjuəri/", img: "image/time/time_January.png" },
+      { en: "February", cn: "二月", ipa: "/ˈfebruəri/", img: "image/time/time_February.png" },
+      { en: "March", cn: "三月", ipa: "/mɑːtʃ/", img: "image/time/time_March.png" },
+      { en: "April", cn: "四月", ipa: "/ˈeɪprəl/", img: "image/time/time_April.png" },
+      { en: "May", cn: "五月", ipa: "/meɪ/", img: "image/time/time_May.png" },
+      { en: "June", cn: "六月", ipa: "/dʒuːn/", img: "image/time/time_June.png" },
+      { en: "July", cn: "七月", ipa: "/dʒuˈlaɪ/", img: "image/time/time_July.png" },
+      { en: "August", cn: "八月", ipa: "/ɔːˈɡʌst/", img: "image/time/time_August.png" },
+      { en: "September", cn: "九月", ipa: "/sepˈtembə/", img: "image/time/time_September.png" },
+      { en: "October", cn: "十月", ipa: "/ɒkˈtəʊbə/", img: "image/time/time_October.png" },
+      { en: "November", cn: "十一月", ipa: "/nəʊˈvembə/", img: "image/time/time_November.png" },
+      { en: "December", cn: "十二月", ipa: "/dɪˈsembə/", img: "image/time/time_December.png" },
+      { en: "now", cn: "现在", ipa: "/naʊ/", img: "image/time/time_now.png" },
+      { en: "today", cn: "今天", ipa: "/təˈdeɪ/", img: "image/time/time_today.png" },
+      { en: "yesterday", cn: "昨天", ipa: "/ˈjestədeɪ/", img: "image/time/time_yesterday.png" },
+      { en: "tomorrow", cn: "明天", ipa: "/təˈmɒrəʊ/", img: "image/time/time_tomorrow.png" },
+      { en: "spring", cn: "春天", ipa: "/sprɪŋ/", img: "image/time/time_spring.png" },
+      { en: "summer", cn: "夏天", ipa: "/ˈsʌmə/", img: "image/time/time_summer.png" },
+      { en: "autumn", cn: "秋天", ipa: "/ˈɔːtəm/", img: "image/time/time_autumn.png" },
+      { en: "winter", cn: "冬天", ipa: "/ˈwɪntə/", img: "image/time/time_winter.png" }
+    ]
+  },
+  {
+    title: "🪑 (13) 家具 (Furniture)",
+    items: [
+      { en: "sofa", cn: "沙发", ipa: "/ˈsəʊfə/", img: "image/furniture/furniture_sofa.png" },
+      { en: "armchair", cn: "扶手椅", ipa: "/ˈɑːmtʃeə/", img: "image/furniture/furniture_armchair.png" },
+      { en: "table", cn: "桌子", ipa: "/ˈteɪbl/", img: "image/furniture/furniture_table.png" },
+      { en: "bookshelf", cn: "书架", ipa: "/ˈbʊkʃelf/", img: "image/furniture/furniture_bookshelf.png" },
+      { en: "cabinet", cn: "储物柜", ipa: "/ˈkæbɪnət/", img: "image/furniture/furniture_cabinet.png" },
+      { en: "bed", cn: "床", ipa: "/bed/", img: "image/furniture/furniture_bed.png" },
+      { en: "wardrobe", cn: "衣柜", ipa: "/ˈwɔːdrəʊb/", img: "image/furniture/furniture_wardrobe.png" },
+      { en: "dresser", cn: "梳妆台", ipa: "/ˈdresə/", img: "image/furniture/furniture_dresser.png" },
+      { en: "mirror", cn: "镜子", ipa: "/ˈmɪrə/", img: "image/furniture/furniture_mirror.png" },
+      { en: "chair", cn: "椅子", ipa: "/tʃeə/", img: "image/furniture/furniture_chair.png" },
+      { en: "cupboard", cn: "碗柜", ipa: "/ˈkʌbəd/", img: "image/furniture/furniture_cupboard.png" },
+      { en: "desk", cn: "书桌", ipa: "/desk/", img: "image/furniture/furniture_desk.png" },
+      { en: "stool", cn: "凳子", ipa: "/stuːl/", img: "image/furniture/furniture_stool.png" },
+      { en: "bench", cn: "长凳", ipa: "/bentʃ/", img: "image/furniture/furniture_bench.png" },
+      { en: "living room", cn: "客厅", ipa: "/ˈlɪvɪŋ ruːm/", img: "image/furniture/furniture_living_room.png" },
+      { en: "bedroom", cn: "卧室", ipa: "/ˈbedruːm/", img: "image/furniture/furniture_bedroom.png" },
+      { en: "kitchen", cn: "厨房", ipa: "/ˈkɪtʃɪn/", img: "image/furniture/furniture_kitchen.png" },
+      { en: "bathroom", cn: "浴室", ipa: "/ˈbɑːθruːm/", img: "image/furniture/furniture_bathroom.png" },
+      { en: "study", cn: "书房", ipa: "/ˈstʌdi/", img: "image/furniture/furniture_study.png" },
+      { en: "balcony", cn: "阳台", ipa: "/ˈbælkəni/", img: "image/furniture/furniture_balcony.png" },
+      { en: "garden", cn: "花园", ipa: "/ˈɡɑːdn/", img: "image/furniture/furniture_garden.png" },
+      { en: "curtain", cn: "窗帘", ipa: "/ˈkɜːtn/", img: "image/furniture/furniture_curtain.png" },
+      { en: "lamp", cn: "台灯", ipa: "/læmp/", img: "image/furniture/furniture_lamp.png" }
+    ]
+  },
+  {
+    title: "👷 (14) 职业 (Jobs)",
+    items: [
+      { en: "teacher", cn: "教师", ipa: "/ˈtiːtʃə/", img: "image/jobs/jobs_teacher.png" },
+      { en: "doctor", cn: "医生", ipa: "/ˈdɒktə/", img: "image/jobs/jobs_doctor.png" },
+      { en: "nurse", cn: "护士", ipa: "/nɜːs/", img: "image/jobs/jobs_nurse.png" },
+      { en: "engineer", cn: "工程师", ipa: "/ˌendʒɪˈnɪə/", img: "image/jobs/jobs_engineer.png" },
+      { en: "police officer", cn: "警察", ipa: "/pəˈliːs ˈɒfɪsə/", img: "image/jobs/jobs_police_officer.png" },
+      { en: "firefighter", cn: "消防员", ipa: "/ˈfaɪəfaɪtə/", img: "image/jobs/jobs_firefighter.png" },
+      { en: "soldier", cn: "军人", ipa: "/ˈsəʊldʒə/", img: "image/jobs/jobs_soldier.png" },
+      { en: "driver", cn: "司机", ipa: "/ˈdraɪvə/", img: "image/jobs/jobs_driver.png" },
+      { en: "cook", cn: "厨师", ipa: "/kʊk/", img: "image/jobs/jobs_cook.png" },
+      { en: "farmer", cn: "农民", ipa: "/ˈfɑːmə/", img: "image/jobs/jobs_farmer.png" },
+      { en: "manager", cn: "经理", ipa: "/ˈmænɪdʒə/", img: "image/jobs/jobs_manager.png" },
+      { en: "secretary", cn: "秘书", ipa: "/ˈsekrətri/", img: "image/jobs/jobs_secretary.png" },
+      { en: "accountant", cn: "会计", ipa: "/əˈkaʊntənt/", img: "image/jobs/jobs_accountant.png" },
+      { en: "salesperson", cn: "销售员", ipa: "/ˈseɪlzpɜːsn/", img: "image/jobs/jobs_salesperson.png" },
+      { en: "artist", cn: "艺术家", ipa: "/ˈɑːtɪst/", img: "image/jobs/jobs_artist.png" },
+      { en: "musician", cn: "音乐家", ipa: "/mjuˈzɪʃn/", img: "image/jobs/jobs_musician.png" },
+      { en: "actor", cn: "演员", ipa: "/ˈæktə/", img: "image/jobs/jobs_actor.png" },
+      { en: "writer", cn: "作家", ipa: "/ˈraɪtə/", img: "image/jobs/jobs_writer.png" },
+      { en: "designer", cn: "设计师", ipa: "/dɪˈzaɪnə/", img: "image/jobs/jobs_designer.png" },
+      { en: "photographer", cn: "摄影师", ipa: "/fəˈtɒɡrəfə/", img: "image/jobs/jobs_photographer.png" },
+      { en: "scientist", cn: "科学家", ipa: "/ˈsaɪəntɪst/", img: "image/jobs/jobs_scientist.png" },
+      { en: "waiter", cn: "男服务员", ipa: "/ˈweɪtə/", img: "image/jobs/jobs_waiter.png" },
+      { en: "cleaner", cn: "清洁工", ipa: "/ˈkliːnə/", img: "image/jobs/jobs_cleaner.png" },
+      { en: "pilot", cn: "飞行员", ipa: "/ˈpaɪlət/", img: "image/jobs/jobs_pilot.png" },
+      { en: "lawyer", cn: "律师", ipa: "/ˈlɔːjə/", img: "image/jobs/jobs_lawyer.png" },
+      { en: "dentist", cn: "牙医", ipa: "/ˈdentɪst/", img: "image/jobs/jobs_dentist.png" },
+      { en: "vet", cn: "兽医", ipa: "/vet/", img: "image/jobs/jobs_vet.png" }
+    ]
+  },
+  {
+    title: "🥤 (15) 饮品 (Drinks)",
+    items: [
+      { en: "water", cn: "水", ipa: "/ˈwɔːtə/", img: "image/drinks/drinks_water.png" },
+      { en: "milk", cn: "牛奶", ipa: "/mɪlk/", img: "image/drinks/drinks_milk.png" },
+      { en: "tea", cn: "茶", ipa: "/tiː/", img: "image/drinks/drinks_tea.png" },
+      { en: "coffee", cn: "咖啡", ipa: "/ˈkɒfi/", img: "image/drinks/drinks_coffee.png" },
+      { en: "juice", cn: "果汁", ipa: "/dʒuːs/", img: "image/drinks/drinks_juice.png" },
+      { en: "soda", cn: "碳酸饮料", ipa: "/ˈsəʊdə/", img: "image/drinks/drinks_soda.png" },
+      { en: "cola", cn: "可乐", ipa: "/ˈkəʊlə/", img: "image/drinks/drinks_cola.png" },
+      { en: "lemonade", cn: "柠檬水", ipa: "/ˌleməˈneɪd/", img: "image/drinks/drinks_lemonade.png" },
+      { en: "beer", cn: "啤酒", ipa: "/bɪə/", img: "image/drinks/drinks_beer.png" },
+      { en: "wine", cn: "葡萄酒", ipa: "/waɪn/", img: "image/drinks/drinks_wine.png" },
+      { en: "hot chocolate", cn: "热巧克力", ipa: "/hɒt ˈtʃɒklət/", img: "image/drinks/drinks_hot_chocolate.png" },
+      { en: "milkshake", cn: "奶昔", ipa: "/ˈmɪlkʃeɪk/", img: "image/drinks/drinks_milkshake.png" }
+    ]
+  },
+  {
+    title: "🚗 (16) 交通 (Transport)",
+    items: [
+      { en: "car", cn: "小汽车", ipa: "/kɑː/", img: "image/transport/transport_car.png" },
+      { en: "bus", cn: "公交车", ipa: "/bʌs/", img: "image/transport/transport_bus.png" },
+      { en: "truck", cn: "卡车", ipa: "/trʌk/", img: "image/transport/transport_truck.png" },
+      { en: "bicycle", cn: "自行车", ipa: "/ˈbaɪsɪkl/", img: "image/transport/transport_bicycle.png" },
+      { en: "motorcycle", cn: "摩托车", ipa: "/ˈməʊtəsaɪkl/", img: "image/transport/transport_motorcycle.png" },
+      { en: "train", cn: "火车", ipa: "/treɪn/", img: "image/transport/transport_train.png" },
+      { en: "subway", cn: "地铁", ipa: "/ˈsʌbweɪ/", img: "image/transport/transport_subway.png" },
+      { en: "taxi", cn: "出租车", ipa: "/ˈtæksi/", img: "image/transport/transport_taxi.png" },
+      { en: "boat", cn: "小船", ipa: "/bəʊt/", img: "image/transport/transport_boat.png" },
+      { en: "ship", cn: "大船", ipa: "/ʃɪp/", img: "image/transport/transport_ship.png" },
+      { en: "ferry", cn: "渡轮", ipa: "/ˈferi/", img: "image/transport/transport_ferry.png" },
+      { en: "airplane", cn: "飞机", ipa: "/ˈeəpleɪn/", img: "image/transport/transport_airplane.png" },
+      { en: "helicopter", cn: "直升机", ipa: "/ˈhelɪkɒptə/", img: "image/transport/transport_helicopter.png" },
+      { en: "ambulance", cn: "救护车", ipa: "/ˈæmbjələns/", img: "image/transport/transport_ambulance.png" },
+      { en: "fire engine", cn: "消防车", ipa: "/ˈfaɪər endʒɪn/", img: "image/transport/transport_fire_engine.png" },
+      { en: "police car", cn: "警车", ipa: "/pəˈliːs kɑː/", img: "image/transport/transport_police_car.png" }
+    ]
+  },
+  {
+    title: "📐 (17) 学科 (Subjects)",
+    items: [
+      { en: "math", cn: "数学", ipa: "/mæθ/", img: "image/subjects/subjects_math.png" },
+      { en: "physics", cn: "物理", ipa: "/ˈfɪzɪks/", img: "image/subjects/subjects_physics.png" },
+      { en: "chemistry", cn: "化学", ipa: "/ˈkemɪstri/", img: "image/subjects/subjects_chemistry.png" },
+      { en: "biology", cn: "生物", ipa: "/baɪˈɒlədʒi/", img: "image/subjects/subjects_biology.png" },
+      { en: "geography", cn: "地理", ipa: "/dʒiˈɒɡrəfi/", img: "image/subjects/subjects_geography.png" },
+      { en: "history", cn: "历史", ipa: "/ˈhɪstri/", img: "image/subjects/subjects_history.png" },
+      { en: "Chinese", cn: "语文", ipa: "/ˌtʃaɪˈniːz/", img: "image/subjects/subjects_Chinese.png" },
+      { en: "English", cn: "英语", ipa: "/ˈɪŋɡlɪʃ/", img: "image/subjects/subjects_English.png" },
+      { en: "music", cn: "音乐", ipa: "/ˈmjuːzɪk/", img: "image/subjects/subjects_music.png" },
+      { en: "art", cn: "美术", ipa: "/ɑːt/", img: "image/subjects/subjects_art.png" },
+      { en: "PE", cn: "体育", ipa: "/piː iː/", img: "image/subjects/subjects_PE.png" },
+      { en: "computer", cn: "计算机", ipa: "/kəmˈpjuːtə/", img: "image/subjects/subjects_computer.png" }
+    ]
+  },
+  {
+    title: "🏀 (18) 运动 (Sports)",
+    items: [
+      { en: "basketball", cn: "篮球", ipa: "/ˈbɑːskɪtbɔːl/", img: "image/sports/sports_basketball.png" },
+      { en: "football", cn: "足球", ipa: "/ˈfʊtbɔːl/", img: "image/sports/sports_football.png" },
+      { en: "volleyball", cn: "排球", ipa: "/ˈvɒlibɔːl/", img: "image/sports/sports_volleyball.png" },
+      { en: "tennis", cn: "网球", ipa: "/ˈtenɪs/", img: "image/sports/sports_tennis.png" },
+      { en: "ping-pong", cn: "乒乓球", ipa: "/ˈpɪŋ pɒŋ/", img: "image/sports/sports_ping-pong.png" },
+      { en: "badminton", cn: "羽毛球", ipa: "/ˈbædmɪntən/", img: "image/sports/sports_badminton.png" },
+      { en: "golf", cn: "高尔夫", ipa: "/ɡɒlf/", img: "image/sports/sports_golf.png" },
+      { en: "baseball", cn: "棒球", ipa: "/ˈbeɪsbɔːl/", img: "image/sports/sports_baseball.png" },
+      { en: "swimming", cn: "游泳", ipa: "/ˈswɪmɪŋ/", img: "image/sports/sports_swimming.png" },
+      { en: "skiing", cn: "滑雪", ipa: "/ˈskiːɪŋ/", img: "image/sports/sports_skiing.png" },
+      { en: "running", cn: "跑步", ipa: "/ˈrʌnɪŋ/", img: "image/sports/sports_running.png" },
+      { en: "yoga", cn: "瑜伽", ipa: "/ˈjəʊɡə/", img: "image/sports/sports_yoga.png" },
+      { en: "dancing", cn: "舞蹈", ipa: "/ˈdɑːnsɪŋ/", img: "image/sports/sports_dancing.png" }
+    ]
+  },
+  {
+    title: "🧸 (19) 玩具 (Toys)",
+    items: [
+      { en: "doll", cn: "洋娃娃", ipa: "/dɒl/", img: "image/toys/toys_doll.png" },
+      { en: "teddy bear", cn: "泰迪熊", ipa: "/ˈtedi beə/", img: "image/toys/toys_teddy_bear.png" },
+      { en: "blocks", cn: "积木", ipa: "/blɒks/", img: "image/toys/toys_blocks.png" },
+      { en: "puzzle", cn: "拼图", ipa: "/ˈpʌzl/", img: "image/toys/toys_puzzle.png" },
+      { en: "kite", cn: "风筝", ipa: "/kaɪt/", img: "image/toys/toys_kite.png" },
+      { en: "robot", cn: "机器人", ipa: "/ˈrəʊbɒt/", img: "image/toys/toys_robot.png" },
+      { en: "game", cn: "电子游戏", ipa: "/ɡeɪm/", img: "image/toys/toys_game.png" },
+      { en: "skateboard", cn: "滑板", ipa: "/ˈskeɪtbɔːd/", img: "image/toys/toys_skateboard.png" }
+    ]
+  },
+  {
+    title: "🔢 (20) 数字 (Numbers)",
+    items: [
+      { en: "one", cn: "一", ipa: "/wʌn/", img: "image/number/number_1.png" },
+      { en: "two", cn: "二", ipa: "/tuː/", img: "image/number/number_2.png" },
+      { en: "three", cn: "三", ipa: "/θriː/", img: "image/number/number_3.png" },
+      { en: "four", cn: "四", ipa: "/fɔː/", img: "image/number/number_4.png" },
+      { en: "five", cn: "五", ipa: "/faɪv/", img: "image/number/number_5.png" },
+      { en: "six", cn: "六", ipa: "/sɪks/", img: "image/number/number_6.png" },
+      { en: "seven", cn: "七", ipa: "/ˈsevn/", img: "image/number/number_7.png" },
+      { en: "eight", cn: "八", ipa: "/eɪt/", img: "image/number/number_8.png" },
+      { en: "nine", cn: "九", ipa: "/naɪn/", img: "image/number/number_9.png" },
+      { en: "ten", cn: "十", ipa: "/ten/", img: "image/number/number_10.png" },
+      { en: "eleven", cn: "十一", ipa: "/ɪˈlevn/", img: "image/number/number_11.png" },
+      { en: "twelve", cn: "十二", ipa: "/twelv/", img: "image/number/number_12.png" },
+      { en: "thirteen", cn: "十三", ipa: "/ˌθɜːˈtiːn/", img: "image/number/number_13.png" },
+      { en: "fourteen", cn: "十四", ipa: "/ˌfɔːˈtiːn/", img: "image/number/number_14.png" },
+      { en: "fifteen", cn: "十五", ipa: "/ˌfɪfˈtiːn/", img: "image/number/number_15.png" },
+      { en: "sixteen", cn: "十六", ipa: "/ˌsɪksˈtiːn/", img: "image/number/number_16.png" },
+      { en: "seventeen", cn: "十七", ipa: "/ˌsevnˈtiːn/", img: "image/number/number_17.png" },
+      { en: "eighteen", cn: "十八", ipa: "/ˌeɪˈtiːn/", img: "image/number/number_18.png" },
+      { en: "nineteen", cn: "十九", ipa: "/ˌnaɪnˈtiːn/", img: "image/number/number_19.png" },
+      { en: "twenty", cn: "二十", ipa: "/ˈtwenti/", img: "image/number/number_20.png" },
+	  { en: "thirty", cn: "三十", ipa: "/ˈθɜːti/", img: "image/number/number_30.png" },
+      { en: "forty", cn: "四十", ipa: "/ˈfɔːti/", img: "image/number/number_40.png" },
+      { en: "fifty", cn: "五十", ipa: "/ˈfɪfti/", img: "image/number/number_50.png" },
+      { en: "sixty", cn: "六十", ipa: "/ˈsɪksti/", img: "image/number/number_60.png" },
+      { en: "seventy", cn: "七十", ipa: "/ˈsevnti/", img: "image/number/number_70.png" },
+      { en: "eighty", cn: "八十", ipa: "/ˈeɪti/", img: "image/number/number_80.png" },
+      { en: "ninety", cn: "九十", ipa: "/ˈnaɪnti/", img: "image/number/number_90.png" },
+      { en: "one hundred", cn: "一百", ipa: "/wʌn ˈhʌndrəd/", img: "image/number/number_100.png" }
+    ]
+  }
+];
+
+        // 状态管理
+        let state = {
+            totalScore: parseInt(localStorage.getItem('edu_totalScore')) || 0,
+            maxCombo: parseInt(localStorage.getItem('edu_maxCombo')) || 0,
+            mistakes: new Set(JSON.parse(localStorage.getItem('edu_mistakes') || '[]')),
+            bookmarks: new Set(JSON.parse(localStorage.getItem('edu_bookmarks') || '[]')),
+            currentCombo: 0,
+            currentLevelIndex: 0,
+            selectedPetId: localStorage.getItem('edu_selectedPetId') || null,
+            mode: 'en-cn',
+            catIdx: -1,
+            queue: [],
+            currIdx: 0,
+            isLocked: false,
+            sessionScore: 0
+        };
+
+        const ui = {
+            petImg: document.getElementById('petImg'), petTitle: document.getElementById('petTitle'), score: document.getElementById('scoreDisplay'), expBar: document.getElementById('expBar'), diff: document.getElementById('nextLevelDiff'), mistakeCount: document.getElementById('mistakeCount'), maxCombo: document.getElementById('maxCombo'), list: document.getElementById('categoryList'), welcome: document.getElementById('welcome'), card: document.getElementById('card'), result: document.getElementById('result'), catTitle: document.getElementById('catTitle'), bar: document.getElementById('progressBar'), 
+            qImg: document.getElementById('qImg'), imgLoading: document.getElementById('imgLoading'),
+            text: document.getElementById('qText'), sub: document.getElementById('qSub'), grid: document.getElementById('grid'), tts: document.getElementById('ttsBtn'), bookmarkBtn: document.getElementById('bookmarkBtn'), modal: document.getElementById('levelUpModal'), newPetImg: document.getElementById('newPetImg'), newPetTitle: document.getElementById('newPetTitle'), combo: document.getElementById('comboDisplay'), comboNum: document.getElementById('comboNum'), prevBtn: document.getElementById('prevBtn'), nextBtn: document.getElementById('nextBtn'), petSelectorModal: document.getElementById('petSelectorModal'), petOptionsGrid: document.getElementById('petOptionsGrid'), confirmPetBtn: document.getElementById('confirmPetBtn'), resetModal: document.getElementById('resetModal')
+        };
+
+        let tempSelectedPet = null;
+
+        function init() {
+            if (!state.selectedPetId) openPetSelector();
+            else { updatePetState(); renderSidebar(); ui.mistakeCount.innerText = state.mistakes.size; ui.maxCombo.innerText = state.maxCombo; }
+            ui.bookmarkBtn.addEventListener('click', toggleBookmark);
+        }
+
+        // --- 重置功能核心逻辑 ---
+        function openResetModal() {
+            ui.resetModal.classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            ui.resetModal.classList.add('hidden');
+        }
+
+        function confirmReset() {
+            // 清除所有 LocalStorage
+            localStorage.removeItem('edu_totalScore');
+            localStorage.removeItem('edu_maxCombo');
+            localStorage.removeItem('edu_mistakes');
+            localStorage.removeItem('edu_bookmarks');
+            localStorage.removeItem('edu_selectedPetId');
+
+            // 重置内存状态
+            state.totalScore = 0;
+            state.maxCombo = 0;
+            state.mistakes.clear();
+            state.bookmarks.clear();
+            state.selectedPetId = null;
+            state.currentLevelIndex = 0;
+            state.sessionScore = 0;
+            state.currentCombo = 0;
+
+            // 关闭弹窗
+            closeResetModal();
+            
+            // 重新初始化宠物选择（因为 ID 被清除了）
+            openPetSelector();
+            
+            // 刷新界面显示
+            ui.mistakeCount.innerText = '0';
+            ui.maxCombo.innerText = '0';
+            renderSidebar();
+            
+            // 如果正在答题，返回欢迎页
+            if(!ui.welcome.classList.contains('hidden')) {
+                // 已经在欢迎页
+            } else {
+                ui.card.classList.add('hidden');
+                ui.result.classList.add('hidden');
+                ui.welcome.classList.remove('hidden');
+            }
+            
+            alert("进度已重置！请重新选择你的宠物伙伴。");
+        }
+
+        // --- 宠物选择系统 ---
+        function openPetSelector() {
+            ui.petOptionsGrid.innerHTML = '';
+            tempSelectedPet = state.selectedPetId;
+            PET_TYPES.forEach(pet => {
+                const card = document.createElement('div');
+                card.className = `pet-select-card bg-slate-50 rounded-2xl p-4 flex flex-col items-center ${pet.id === tempSelectedPet ? 'selected' : ''}`;
+                card.innerHTML = `<div class="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3 bg-white border-4 border-white shadow-sm"><img src="${pet.stages[0]}" class="w-full h-full object-cover"></div><div class="font-black text-slate-700 md:text-lg">${pet.name}</div>`;
+                card.onclick = () => selectPetCard(card, pet.id);
+                ui.petOptionsGrid.appendChild(card);
+            });
+            ui.petSelectorModal.classList.remove('hidden'); updateConfirmButton();
+        }
+
+        function closePetSelector() { if (state.selectedPetId) ui.petSelectorModal.classList.add('hidden'); }
+        function selectPetCard(cardElement, petId) { Array.from(ui.petOptionsGrid.children).forEach(c => c.classList.remove('selected')); cardElement.classList.add('selected'); tempSelectedPet = petId; updateConfirmButton(); }
+        function updateConfirmButton() { ui.confirmPetBtn.disabled = !tempSelectedPet; }
+        
+        function confirmPetSelection() {
+            if (!tempSelectedPet) return;
+            state.selectedPetId = tempSelectedPet; localStorage.setItem('edu_selectedPetId', state.selectedPetId);
+            ui.petSelectorModal.classList.add('hidden'); updatePetState(); renderSidebar();
+        }
+
+        function updatePetState() {
+            if (!state.selectedPetId) return;
+            const petConfig = PET_TYPES.find(p => p.id === state.selectedPetId);
+            let levelIndex = 0;
+            for(let i = 0; i < LEVELS.length; i++) { if(state.totalScore >= LEVELS[i].min) levelIndex = i; }
+            if(levelIndex > state.currentLevelIndex && state.totalScore > 0) showLevelUp(levelIndex, petConfig);
+            state.currentLevelIndex = levelIndex;
+            const currLvlConfig = LEVELS[levelIndex], nextLvlConfig = LEVELS[levelIndex+1];
+            ui.petImg.src = petConfig.stages[currLvlConfig.stageIndex];
+            ui.petTitle.innerHTML = `<i class="fas fa-medal mr-1"></i> Lv.${levelIndex+1} ${currLvlConfig.name}`;
+            ui.score.innerText = state.totalScore;
+            if(nextLvlConfig) {
+                const range = nextLvlConfig.min - currLvlConfig.min, progress = state.totalScore - currLvlConfig.min, pct = Math.min(100, (progress / range) * 100);
+                ui.expBar.style.width = `${pct}%`; ui.diff.innerText = nextLvlConfig.min - state.totalScore;
+            } else { ui.expBar.style.width = '100%'; ui.diff.innerText = 'MAX'; }
+            localStorage.setItem('edu_totalScore', state.totalScore);
+        }
+
+        function showLevelUp(levelIndex, petConfig) {
+            confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#4285F4', '#34A853', '#FBBC05', '#EA4335'] });
+            ui.newPetImg.src = petConfig.stages[LEVELS[levelIndex].stageIndex];
+            ui.newPetTitle.innerText = LEVELS[levelIndex].name;
+            ui.modal.classList.remove('hidden');
+        }
+        function closeLevelUp() { ui.modal.classList.add('hidden'); }
+
+        // --- 侧边栏 ---
+        function renderSidebar() {
+            ui.list.innerHTML = '';
+            if (state.bookmarks.size > 0) {
+                const b = document.createElement('button');
+                b.className = "sidebar-item bookmark w-full text-left px-6 py-5 border-b border-slate-100 flex justify-between items-center group transition-all text-slate-700";
+                b.innerHTML = `<span class="font-bold text-base truncate group-hover:text-[#F29900] transition-colors"><i class="fas fa-star text-[#FBBC05] mr-2"></i> 我的收藏</span><span class="text-sm bg-yellow-100 px-3 py-1 rounded-lg text-[#F29900] font-bold">${state.bookmarks.size}</span>`;
+                b.onclick = () => loadBookmarks(); ui.list.appendChild(b);
+            }
+            rawData.forEach((cat, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "sidebar-item w-full text-left px-5 py-4 border-b border-slate-100 flex justify-between items-center group transition-all text-slate-600 hover:bg-slate-50";
+                btn.innerHTML = `<span class="font-bold text-sm truncate group-hover:text-[#4285F4] transition-colors">${cat.title}</span><span class="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded-md font-bold">${cat.items.length}</span>`;
+                btn.onclick = () => loadCategory(idx); ui.list.appendChild(btn);
+            });
+        }
+
+        // --- 核心题库逻辑 ---
+        function loadCategory(idx) {
+            state.catIdx = idx; state.sessionScore = 0; state.currentCombo = 0;
+            Array.from(ui.list.children).forEach((b, i) => b.classList.toggle('active', i === (state.bookmarks.size > 0 ? idx + 1 : idx)));
+            ui.catTitle.innerHTML = `<i class="fas fa-flag text-[#4285F4] mr-2"></i> ` + (idx === -99 ? "错题本挑战" : rawData[idx].title);
+            ui.welcome.classList.add('hidden'); ui.result.classList.add('hidden'); ui.card.classList.remove('hidden');
+
+            if(idx === -99) {
+                state.queue = rawData.flatMap(c => c.items).filter(i => state.mistakes.has(i.en));
+                if(state.queue.length === 0) { alert("错题本空空如也，你太棒了！"); return; }
+            } else state.queue = [...rawData[idx].items];
+            
+            state.queue.sort(() => Math.random() - 0.5);
+            state.currIdx = 0; renderQuestion();
+        }
+
+        function loadBookmarks() {
+            state.catIdx = -100; state.sessionScore = 0; state.currentCombo = 0;
+            Array.from(ui.list.children).forEach((b, i) => b.classList.toggle('active', i === 0));
+            ui.catTitle.innerHTML = `<i class="fas fa-star text-[#FBBC05] mr-2"></i> 我的收藏`;
+            ui.welcome.classList.add('hidden'); ui.result.classList.add('hidden'); ui.card.classList.remove('hidden');
+            state.queue = rawData.flatMap(c => c.items).filter(i => state.bookmarks.has(i.en));
+            if(state.queue.length === 0) { alert("收藏夹为空哦！"); return; }
+            state.queue.sort(() => Math.random() - 0.5); state.currIdx = 0; renderQuestion();
+        }
+        function loadMistakeBook() { loadCategory(-99); }
+
+        function renderQuestion() {
+            state.isLocked = false;
+            const item = state.queue[state.currIdx];
+            ui.bar.style.width = `${(state.currIdx / state.queue.length) * 100}%`;
+            ui.prevBtn.disabled = state.currIdx === 0;
+            if(state.currIdx === state.queue.length - 1) { ui.nextBtn.innerHTML = `<span>完成关卡</span><i class="fas fa-flag-checkered ml-2 text-[#34A853]"></i>`; ui.nextBtn.onclick = finishLevel; }
+            else { ui.nextBtn.innerHTML = `<span>跳过本题</span><i class="fas fa-arrow-right ml-2"></i>`; ui.nextBtn.onclick = skipQuestion; }
+            updateBookmarkButton(item);
+
+            const isEn = state.mode === 'en-cn';
+            if(isEn) {
+                ui.text.innerText = item.en;
+                ui.sub.innerHTML = `<div class="ipa-box text-xl mt-1 tracking-wider bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">${item.ipa}</div>`;
+                ui.tts.classList.remove('hidden');
+            } else {
+                ui.text.innerText = item.cn;
+                try { ui.sub.innerHTML = `<div class="pinyin-box-large mt-1">${window.pinyinPro.pinyin(item.cn, { toneType: 'symbol' })}</div>`; } catch(e) { ui.sub.innerHTML = ""; }
+                ui.tts.classList.add('hidden');
+            }
+
+            // 更新图片，并显示加载状态
+            ui.qImg.style.opacity = '0';
+            ui.imgLoading.style.display = 'flex';
+            ui.qImg.src = item.img;
+            
+            // 触发重新入场动画
+            ui.qImg.classList.remove('animate-popIn');
+            void ui.qImg.offsetWidth; 
+            ui.qImg.classList.add('animate-popIn');
+
+            let pool = (state.catIdx === -99 || state.catIdx === -100) ? rawData.flatMap(c => c.items).filter(x => x.en !== item.en) : rawData[state.catIdx].items.filter(x => x !== item);
+            if(pool.length < 3) pool = [...pool, ...rawData.flatMap(c=>c.items).filter(x=>x.en!==item.en)];
+            const opts = [item, ...pool.sort(()=>Math.random()-0.5).slice(0,3)].sort(()=>Math.random()-0.5);
+
+            ui.grid.innerHTML = '';
+            opts.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.dataset.val = opt.en;
+                btn.className = "option-btn w-full h-full min-h-[100px] bg-white rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm border-2 border-slate-200 hover:bg-[#F8F9FA] hover:border-slate-300";
+                if(isEn) btn.innerHTML = `<span class="text-2xl font-black text-slate-700 leading-none">${opt.cn}</span>`;
+                else btn.innerHTML = `<span class="text-3xl font-black text-slate-700 leading-none">${opt.en}</span><span class="ipa-box text-base text-slate-400">${opt.ipa}</span>`;
+                btn.onclick = (e) => checkAnswer(btn, opt.en === item.en, item, e);
+                ui.grid.appendChild(btn);
+            });
+        }
+
+        function prevQuestion() { if(state.currIdx > 0) { state.currIdx--; renderQuestion(); } }
+        function skipQuestion() { state.currentCombo = 0; nextQuestion(); }
+
+        function checkAnswer(btn, isRight, item, e) {
+            if(state.isLocked) return;
+            state.isLocked = true;
+            let touchX = e.clientX || (e.touches ? e.touches[0].clientX : btn.getBoundingClientRect().left + 50);
+            let touchY = e.clientY || (e.touches ? e.touches[0].clientY : btn.getBoundingClientRect().top + 20);
+
+            if(isRight) {
+                btn.classList.add('correct');
+                state.currentCombo++;
+                addScore(state.currentCombo >= 6 ? 30 : state.currentCombo >= 3 ? 20 : 10, touchX, touchY);
+                if(state.currentCombo > 1) showCombo(state.currentCombo);
+                if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
+                speak(item.en);
+                setTimeout(nextQuestion, 800);
+            } else {
+                btn.classList.add('wrong');
+                state.currentCombo = 0;
+                if(!state.mistakes.has(item.en)) {
+                    state.mistakes.add(item.en); saveMistakes();
+                    ui.mistakeCount.classList.add('scale-150', 'text-red-600');
+                    setTimeout(() => ui.mistakeCount.classList.remove('scale-150', 'text-red-600'), 400);
+                }
+                Array.from(ui.grid.children).forEach(b => { if(b.dataset.val === item.en) { b.classList.add('correct'); b.style.transform = "scale(1.05)"; } });
+                speak(item.en);
+                setTimeout(nextQuestion, 1500);
+            }
+            if(state.currentCombo > state.maxCombo) { state.maxCombo = state.currentCombo; ui.maxCombo.innerText = state.maxCombo; localStorage.setItem('edu_maxCombo', state.maxCombo); }
+        }
+
+        function addScore(pts, x, y) {
+            state.totalScore += pts; state.sessionScore += pts; updatePetState();
+            const el = document.createElement('div'); el.className = 'score-float'; el.innerText = `+${pts}`;
+            el.style.left = (x - 20) + 'px'; el.style.top = (y - 30) + 'px'; document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function showCombo(num) {
+            ui.comboNum.innerText = num; ui.combo.style.opacity = '1'; ui.combo.style.transform = 'scale(1) rotate(0deg)';
+            setTimeout(() => { ui.combo.style.opacity = '0'; ui.combo.style.transform = 'scale(0.5) rotate(12deg)'; }, 800);
+        }
+
+        function nextQuestion() { state.currIdx++; if(state.currIdx < state.queue.length) renderQuestion(); else finishLevel(); }
+        function finishLevel() {
+            ui.bar.style.width = '100%';
+            setTimeout(() => { ui.card.classList.add('hidden'); ui.result.classList.remove('hidden'); document.getElementById('levelScore').innerText = state.sessionScore; confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#4285F4', '#34A853', '#FBBC05', '#EA4335'] }); }, 300);
+        }
+        function reloadCurrent() { if (state.catIdx === -100) loadBookmarks(); else loadCategory(state.catIdx); }
+
+        function toggleBookmark() {
+            const item = state.queue[state.currIdx]; if (!item) return;
+            if (state.bookmarks.has(item.en)) { state.bookmarks.delete(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-regular fa-star"></i>'; }
+            else { state.bookmarks.add(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-solid fa-star"></i>'; }
+            saveBookmarks(); renderSidebar();
+        }
+        function updateBookmarkButton(item) {
+            if (!item) return;
+            if (state.bookmarks.has(item.en)) { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-solid fa-star"></i>'; }
+            else { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-regular fa-star"></i>'; }
+        }
+
+        function saveBookmarks() { localStorage.setItem('edu_bookmarks', JSON.stringify([...state.bookmarks])); }
+        function saveMistakes() { localStorage.setItem('edu_mistakes', JSON.stringify([...state.mistakes])); ui.mistakeCount.innerText = state.mistakes.size; }
+
+        function setMode(m) {
+            state.mode = m;
+            document.getElementById('btnEnCn').className = m === 'en-cn' ? "px-4 py-1.5 text-sm md:text-base font-bold rounded-lg shadow bg-white text-[#4285F4] transition-all" : "px-4 py-1.5 text-sm md:text-base font-bold rounded-lg text-slate-500 hover:text-slate-800 transition-all";
+            document.getElementById('btnCnEn').className = m === 'cn-en' ? "px-4 py-1.5 text-sm md:text-base font-bold rounded-lg shadow bg-white text-[#4285F4] transition-all" : "px-4 py-1.5 text-sm md:text-base font-bold rounded-lg text-slate-500 hover:text-slate-800 transition-all";
+            if(state.catIdx !== -1 && state.catIdx !== -99 && state.catIdx !== -100) loadCategory(state.catIdx);
+        }
+
+        function speak(txt) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'en-US'; u.rate = 0.9; window.speechSynthesis.speak(u); } }
+        function playAudio() { const item = state.queue[state.currIdx]; if(item) speak(item.en); ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]'); setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200); }
+
+        init();
+    </script>
+	
+	<script>
+		if ('serviceWorker' in navigator) {
+		  window.addEventListener('load', () => {
+			navigator.serviceWorker.register('./sw.js')
+			  .then(reg => console.log('SW registered:', reg))
+			  .catch(err => console.error('SW failed:', err));
+		  });
+		}
+</script>
+</body>
+</html>
