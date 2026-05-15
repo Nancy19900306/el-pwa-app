@@ -10,10 +10,7 @@
     <title>单词大冒险：终极养成版 (AI 绘图完整版)</title>
     <!-- 引入必要的库 -->
     <script src="https://data.aix101.com/cdn/npm/@tailwindcss/3.4.17.js"></script>
-    <link rel="stylesheet" href="https://data.aix101.com/cdn/font-awesome/6.4.0/css/all.min.css">
-    <!--<script src="https://unpkg.com/pinyin-pro@3.18.2/dist/index.js"></script>
-    <script src="https://cdn.zcat.cn/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>-->
-	
+
 	<script src="./js/pinyin-pro-3.18.2.js"></script>
 	<script src="./js/canvas-confetti-1.6.0.min.js"></script>
     <style>
@@ -27,11 +24,13 @@
         @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
-        /* 大尺寸、带物理按压感的选项按钮 */
+        /* 大尺寸、带物理按压感的选项按钮 - 鲜艳配色版 */
         .option-btn { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 6px solid #e2e8f0; position: relative; top: 0; }
         .option-btn:active { top: 6px; border-bottom: 0px solid transparent; }
-        .option-btn.correct { background-color: #E6F4EA !important; border-color: #34A853 !important; border-bottom-color: #1E8E3E !important; color: #137333 !important; }
-        .option-btn.wrong { background-color: #FCE8E6 !important; border-color: #EA4335 !important; border-bottom-color: #D93025 !important; color: #A50E0E !important; animation: shake 0.3s ease-in-out; }
+        /* 正确：鲜艳成功绿 */
+        .option-btn.correct { background-color: #DCFCE7 !important; border-color: #22C55E !important; border-bottom-color: #15803D !important; color: #166534 !important; }
+        /* 错误：鲜艳警报红 */
+        .option-btn.wrong { background-color: #FEE2E2 !important; border-color: #EF4444 !important; border-bottom-color: #B91C1C !important; color: #991B1B !important; animation: shake 0.3s ease-in-out; }
 
         /* 顶部导航激活状态 */
         .nav-item.active { background-color: #E8F0FE; color: #1967D2; font-weight: bold; border-bottom: 4px solid #4285F4; }
@@ -83,7 +82,7 @@
                 <div class="w-14 h-14 md:w-16 md:h-16 bg-white/20 rounded-xl border-2 border-white/40 flex items-center justify-center overflow-hidden shadow-lg shrink-0 relative group bg-white">
                     <img id="petImg" src="" class="w-full h-full object-cover pet-breathing" alt="Pet">
                     <button onclick="openPetSelector()" class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" title="更换宠物">
-                        <i class="fas fa-paw text-white text-xl md:text-2xl"></i>
+                        <span class="text-white text-xl md:text-2xl">🐾</span>
                     </button>
                 </div>
                 <div class="flex-1 min-w-0">
@@ -104,15 +103,15 @@
             <!-- 右侧：统计与设置 -->
             <div class="flex items-center gap-2 md:gap-3 shrink-0">
                 <button onclick="loadMistakeBook()" class="flex flex-col items-center justify-center bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors active:scale-95 group backdrop-blur-sm border border-white/10">
-                    <div class="text-[#FFCDD2] group-hover:scale-110 transition-transform"><i class="fas fa-book-open text-lg md:text-xl"></i></div>
+                    <div class="text-[#FFCDD2] group-hover:scale-110 transition-transform"><span class="text-lg md:text-xl">📚</span></div>
                     <div class="text-[10px] md:text-xs font-bold text-white mt-0.5" id="mistakeCount">0</div>
                 </button>
                 <div class="flex flex-col items-center justify-center bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/10">
-                    <div class="text-[#C8E6C9]"><i class="fas fa-fire text-lg md:text-xl"></i></div>
+                    <div class="text-[#C8E6C9]"><span class="text-lg md:text-xl">🔥</span></div>
                     <div class="text-[10px] md:text-xs font-bold text-white mt-0.5" id="maxCombo">0</div>
                 </div>
                 <button onclick="openResetModal()" class="ml-2 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-[#EA4335] text-white flex items-center justify-center transition-colors active:scale-95" title="重置进度">
-                    <i class="fas fa-trash-alt text-sm md:text-base"></i>
+                    <span class="text-sm md:text-base">🔄</span>
                 </button>
             </div>
         </div>
@@ -122,7 +121,7 @@
             <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">关卡选择</span>
                 <button onclick="toggleNav()" class="nav-toggle-btn w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors">
-                    <i class="fas fa-chevron-down"></i>
+                    <span>⬇️</span>
                 </button>
             </div>
             <!-- 模式切换 -->
@@ -159,13 +158,13 @@
                         <div id="progressBar" class="h-full bg-[#34A853] transition-all duration-300 w-0"></div>
                     </div>
                     <button id="bookmarkBtn" class="absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10">
-                        <i class="fa-regular fa-star"></i>
+                        <span>⭐</span>
                     </button>
 
                     <!-- 使用真实图片展示区域，带加载动画 -->
                     <div class="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] overflow-hidden shadow-lg border-[6px] border-white bg-slate-100 mb-4 shrink-0 relative flex items-center justify-center transition-transform hover:scale-105 group">
                         <div id="imgLoading" class="absolute inset-0 flex items-center justify-center bg-slate-100 z-0">
-                            <i class="fas fa-spinner fa-spin text-4xl text-slate-300"></i>
+                            <span class="text-4xl text-slate-300 animate-pulse">⏳</span>
                         </div>
                         <img id="qImg" src="" class="w-full h-full object-cover z-10 relative opacity-0 transition-opacity duration-300 animate-popIn" alt="单词图解" onload="this.style.opacity=1; document.getElementById('imgLoading').style.display='none'" onerror="this.src='https://api.zcat.cn/udata/716492/png/97ce4d4e6f1911baa35b7f161e9f595a.png'; this.style.opacity=1;">
                     </div>
@@ -174,30 +173,31 @@
                         <div class="flex items-center justify-center gap-4">
                             <h1 id="qText" class="text-4xl md:text-6xl font-black text-slate-800 drop-shadow-sm tracking-wide">Word</h1>
                             <button id="ttsBtn" onclick="playAudio()" class="w-12 h-12 rounded-full bg-[#E8F0FE] text-[#4285F4] shadow-sm flex items-center justify-center hover:bg-[#D2E3FC] active:scale-90 transition-all">
-                                <i class="fas fa-volume-up text-2xl"></i>
+                                <span class="text-2xl">🔊</span>
                             </button>
                         </div>
                         <div id="qSub" class="min-h-[3rem] mt-2 flex items-center justify-center"></div>
                     </div>
                 </div>
 
-                <div class="flex-1 bg-slate-100 p-4 md:p-8 overflow-y-auto">
-                    <div id="grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 h-full content-center max-w-4xl mx-auto"></div>
+                <div class="flex-1 bg-slate-100 p-3 sm:p-4 md:p-8 overflow-y-auto">
+                    <!-- 强制两列布局，手机上自动平分宽度 -->
+                    <div id="grid" class="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 h-full content-center max-w-4xl mx-auto"></div>
                 </div>
 
                 <div class="p-4 bg-white border-t border-slate-200 flex justify-between items-center shrink-0">
                     <button id="prevBtn" onclick="prevQuestion()" class="px-6 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-lg hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center active:scale-95">
-                        <i class="fas fa-arrow-left mr-2"></i> 上一题
+                        <span class="mr-2">⬅️</span> 上一题
                     </button>
                     <button id="nextBtn" onclick="skipQuestion()" class="px-6 py-3 rounded-xl bg-[#E8F0FE] text-[#1967D2] font-bold text-lg hover:bg-[#D2E3FC] transition-colors flex items-center active:scale-95">
-                        <span>跳过本题</span> <i class="fas fa-arrow-right ml-2"></i>
+                        <span>跳过本题</span> <span class="ml-2">➡️</span>
                     </button>
                 </div>
             </div>
 
             <!-- 结算与弹窗部分 -->
             <div id="result" class="hidden bg-white p-10 rounded-[2rem] shadow-2xl text-center max-w-md border border-slate-100 animate-popIn z-20">
-                <div class="w-24 h-24 mx-auto bg-[#FFF8E1] rounded-full flex items-center justify-center mb-6"><i class="fas fa-trophy text-5xl text-[#FBBC05]"></i></div>
+                <div class="w-24 h-24 mx-auto bg-[#FFF8E1] rounded-full flex items-center justify-center mb-6"><span class="text-5xl">🏆</span></div>
                 <h2 class="text-4xl font-black text-slate-800 mb-4">关卡完成!</h2>
                 <div class="bg-[#F8F9FA] text-slate-700 py-4 px-6 rounded-2xl mb-8 font-bold text-xl border border-slate-200">
                     本局获得：<span id="levelScore" class="text-[#34A853] text-3xl ml-2">0</span> 分
@@ -209,7 +209,7 @@
         <div id="levelUpModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden backdrop-blur-sm">
             <div class="bg-white rounded-[2rem] p-10 text-center max-w-md mx-4 shadow-2xl relative overflow-hidden animate-popIn">
                 <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[#FFF8E1] to-white -z-10"></div>
-                <div class="text-xl font-bold text-[#FBBC05] mb-2 tracking-widest"><i class="fas fa-star mr-2"></i>LEVEL UP<i class="fas fa-star ml-2"></i></div>
+                <div class="text-xl font-bold text-[#FBBC05] mb-2 tracking-widest"><span class="mr-2">⭐</span>LEVEL UP<span class="ml-2">⭐</span></div>
                 <h2 class="text-4xl font-black text-slate-800 mb-8">伙伴长大了!</h2>
                 <div class="w-48 h-48 mx-auto bg-white rounded-full border-[8px] border-white shadow-xl flex items-center justify-center mb-8 relative">
                     <div class="absolute inset-0 rounded-full animate-ping bg-[#4285F4] opacity-20"></div>
@@ -223,7 +223,7 @@
 
         <div id="petSelectorModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center hidden backdrop-blur-sm">
             <div class="bg-white rounded-[2rem] p-6 md:p-10 text-center max-w-3xl w-full mx-4 shadow-2xl relative animate-popIn">
-                <button onclick="closePetSelector()" class="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 active:scale-90 flex items-center justify-center"><i class="fas fa-times text-xl"></i></button>
+                <button onclick="closePetSelector()" class="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 active:scale-90 flex items-center justify-center"><span class="text-xl">✕</span></button>
                 <h2 class="text-3xl md:text-4xl font-black text-slate-800 mb-3">领养你的学习伙伴</h2>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 mt-6" id="petOptionsGrid"></div>
                 <button id="confirmPetBtn" onclick="confirmPetSelection()" class="w-full max-w-sm mx-auto bg-[#34A853] text-white font-black text-2xl py-4 rounded-2xl shadow-lg hover:bg-[#208b3a] active:scale-95 disabled:opacity-50" disabled>确认领养</button>
@@ -234,7 +234,7 @@
         <div id="resetModal" class="fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center hidden backdrop-blur-sm">
             <div class="bg-white rounded-[2rem] p-8 text-center max-w-md w-full mx-4 shadow-2xl relative animate-popIn border-t-8 border-[#EA4335]">
                 <div class="w-20 h-20 mx-auto bg-[#FCE8E6] rounded-full flex items-center justify-center mb-6">
-                    <i class="fas fa-exclamation-triangle text-4xl text-[#EA4335]"></i>
+                    <span class="text-4xl">⚠️</span>
                 </div>
                 <h2 class="text-2xl font-black text-slate-800 mb-2">确定要重置进度吗？</h2>
                 <p class="text-slate-500 mb-6 text-sm leading-relaxed">
@@ -902,7 +902,7 @@
             state.currentLevelIndex = levelIndex;
             const currLvlConfig = LEVELS[levelIndex], nextLvlConfig = LEVELS[levelIndex+1];
             ui.petImg.src = petConfig.stages[currLvlConfig.stageIndex];
-            ui.petTitle.innerHTML = `<i class="fas fa-medal mr-1"></i> Lv.${levelIndex+1} ${currLvlConfig.name}`;
+            ui.petTitle.innerHTML = `<span class="mr-1">🏅</span> Lv.${levelIndex+1} ${currLvlConfig.name}`;
             ui.score.innerText = state.totalScore;
             if(nextLvlConfig) {
                 const range = nextLvlConfig.min - currLvlConfig.min, progress = state.totalScore - currLvlConfig.min, pct = Math.min(100, (progress / range) * 100);
@@ -944,7 +944,7 @@
                 b.className = `nav-item w-full p-3 rounded-xl flex items-center justify-between transition-all shadow-sm border ${isActive ? 'active bg-white border-[#FBBC05] ring-1 ring-[#FBBC05]' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
                 b.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <i class="fas fa-star text-lg ${isActive ? 'text-[#FBBC05]' : 'text-slate-400'}"></i>
+                        <span class="text-lg ${isActive ? 'text-[#FBBC05]' : 'text-slate-400'}">⭐</span>
                         <span class="font-bold text-sm">我的收藏</span>
                     </div>
                     <span class="text-xs bg-yellow-100 px-2 py-0.5 rounded-md text-[#F29900] font-bold">${state.bookmarks.size}</span>
@@ -972,7 +972,7 @@
                         <span class="text-xl">${icon}</span>
                         <span class="font-bold text-sm truncate">${name}</span>
                     </div>
-                    ${isActive ? '<i class="fas fa-check-circle text-[#4285F4]"></i>' : ''}
+                    ${isActive ? '<span class="text-[#4285F4]">✅</span>' : ''}
                 `;
                 btn.onclick = () => {
                     loadCategory(idx);
@@ -1037,8 +1037,8 @@
             const item = state.queue[state.currIdx];
             ui.bar.style.width = `${(state.currIdx / state.queue.length) * 100}%`;
             ui.prevBtn.disabled = state.currIdx === 0;
-            if(state.currIdx === state.queue.length - 1) { ui.nextBtn.innerHTML = `<span>完成关卡</span><i class="fas fa-flag-checkered ml-2 text-[#34A853]"></i>`; ui.nextBtn.onclick = finishLevel; }
-            else { ui.nextBtn.innerHTML = `<span>跳过本题</span><i class="fas fa-arrow-right ml-2"></i>`; ui.nextBtn.onclick = skipQuestion; }
+            if(state.currIdx === state.queue.length - 1) { ui.nextBtn.innerHTML = `<span>完成关卡</span><span class="ml-2 text-[#34A853]">🏁</span>`; ui.nextBtn.onclick = finishLevel; }
+            else { ui.nextBtn.innerHTML = `<span>跳过本题</span><span class="ml-2">➡️</span>`; ui.nextBtn.onclick = skipQuestion; }
             updateBookmarkButton(item);
 
             const isEn = state.mode === 'en-cn';
@@ -1070,9 +1070,15 @@
             opts.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.dataset.val = opt.en;
-                btn.className = "option-btn w-full h-full min-h-[100px] bg-white rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm border-2 border-slate-200 hover:bg-[#F8F9FA] hover:border-slate-300";
-                if(isEn) btn.innerHTML = `<span class="text-2xl font-black text-slate-700 leading-none">${opt.cn}</span>`;
-                else btn.innerHTML = `<span class="text-3xl font-black text-slate-700 leading-none">${opt.en}</span><span class="ipa-box text-base text-slate-400">${opt.ipa}</span>`;
+                // 响应式设计：手机上 padding 和字体稍小，平板及以上恢复大尺寸
+                btn.className = "option-btn w-full h-full min-h-[80px] sm:min-h-[100px] bg-white rounded-2xl p-2 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 shadow-sm border-2 border-slate-200 hover:bg-[#F8F9FA] hover:border-slate-300";
+                if(isEn) {
+                    // 中文选项：手机 text-xl，桌面 text-2xl
+                    btn.innerHTML = `<span class="text-xl sm:text-2xl font-black text-slate-700 leading-none">${opt.cn}</span>`;
+                } else {
+                    // 英文选项：手机 text-2xl，桌面 text-3xl
+                    btn.innerHTML = `<span class="text-2xl sm:text-3xl font-black text-slate-700 leading-none">${opt.en}</span><span class="ipa-box text-xs sm:text-base text-slate-400">${opt.ipa}</span>`;
+                }
                 btn.onclick = (e) => checkAnswer(btn, opt.en === item.en, item, e);
                 ui.grid.appendChild(btn);
             });
@@ -1131,14 +1137,14 @@
 
         function toggleBookmark() {
             const item = state.queue[state.currIdx]; if (!item) return;
-            if (state.bookmarks.has(item.en)) { state.bookmarks.delete(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-regular fa-star"></i>'; }
-            else { state.bookmarks.add(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-solid fa-star"></i>'; }
+            if (state.bookmarks.has(item.en)) { state.bookmarks.delete(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
+            else { state.bookmarks.add(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
             saveBookmarks(); renderTopNav();
         }
         function updateBookmarkButton(item) {
             if (!item) return;
-            if (state.bookmarks.has(item.en)) { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-solid fa-star"></i>'; }
-            else { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<i class="fa-regular fa-star"></i>'; }
+            if (state.bookmarks.has(item.en)) { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
+            else { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
         }
 
         function saveBookmarks() { localStorage.setItem('edu_bookmarks', JSON.stringify([...state.bookmarks])); }
