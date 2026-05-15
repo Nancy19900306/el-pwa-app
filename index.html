@@ -9,10 +9,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>单词大冒险：终极养成版 (AI 绘图完整版)</title>
     <!-- 引入必要的库 -->
-    <script src="https://data.aix101.com/cdn/npm/@tailwindcss/3.4.17.js"></script>
-
+    <script src="https://data.zcat.cn/cdn/npm/@tailwindcss/3.4.17.js"></script>
 	<script src="./js/pinyin-pro-3.18.2.js"></script>
 	<script src="./js/canvas-confetti-1.6.0.min.js"></script>
+
     <style>
         /* 核心基础样式与护眼背景 */
         body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background-color: #F5F7FB; -webkit-tap-highlight-color: transparent; overflow: hidden; }
@@ -36,7 +36,7 @@
         .nav-item.active { background-color: #E8F0FE; color: #1967D2; font-weight: bold; border-bottom: 4px solid #4285F4; }
         .nav-item.bookmark { background-color: #FFF8E1; border-left: none; border-bottom: 4px solid #FBBC05; }
 
-        /* 导航折叠区域样式 */
+        /* 导航折叠区域样式 - 重点优化部分 */
         #navContainer {
             transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
             overflow: hidden;
@@ -44,7 +44,8 @@
             opacity: 0;
         }
         #navContainer.expanded {
-            max-height: 80vh; /* 允许展开到屏幕高度的 80%，适应长列表 */
+            /* 修正：设置为 75vh，留出底部空间给主操作区，防止遮挡 */
+            max-height: 75vh; 
             opacity: 1;
         }
         .nav-list {
@@ -52,6 +53,11 @@
             flex-direction: column;
             gap: 0.5rem;
             padding: 0.75rem;
+            /* 新增：允许列表内部滚动，不撑破容器 */
+            overflow-y: auto; 
+            /* 优化滚动条样式 */
+            scrollbar-width: thin;
+            scrollbar-color: #CBD5E1 #F1F5F9;
         }
         .nav-toggle-btn {
             transition: transform 0.3s ease;
@@ -106,10 +112,10 @@
                     <div class="text-[#FFCDD2] group-hover:scale-110 transition-transform"><span class="text-lg md:text-xl">📚</span></div>
                     <div class="text-[10px] md:text-xs font-bold text-white mt-0.5" id="mistakeCount">0</div>
                 </button>
-                <div class="flex flex-col items-center justify-center bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/10">
-                    <div class="text-[#C8E6C9]"><span class="text-lg md:text-xl">🔥</span></div>
-                    <div class="text-[10px] md:text-xs font-bold text-white mt-0.5" id="maxCombo">0</div>
-                </div>
+                <button onclick="loadBookmarksFromHeader()" class="flex flex-col items-center justify-center bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors active:scale-95 group backdrop-blur-sm border border-white/10">
+                    <div class="text-[#FFF8E1] group-hover:scale-110 transition-transform"><span class="text-lg md:text-xl">⭐</span></div>
+                    <div class="text-[10px] md:text-xs font-bold text-white mt-0.5" id="bookmarkCountHeader">0</div>
+                </button>
                 <button onclick="openResetModal()" class="ml-2 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-[#EA4335] text-white flex items-center justify-center transition-colors active:scale-95" title="重置进度">
                     <span class="text-sm md:text-base">🔄</span>
                 </button>
@@ -142,13 +148,6 @@
         <!-- 装饰背景 -->
         <div class="absolute top-10 left-10 w-64 h-64 bg-white/40 rounded-full blur-3xl pointer-events-none"></div>
         
-        <!-- 连击提示 -->
-        <div id="comboDisplay" class="absolute top-10 right-8 z-0 pointer-events-none opacity-0 transition-all duration-300 scale-50 rotate-12">
-            <div class="text-5xl md:text-7xl font-black text-[#FBBC05] italic" style="-webkit-text-stroke: 3px #FFF; text-shadow: 0 4px 15px rgba(251,188,5,0.5);">
-                <span id="comboNum">2</span><span class="text-4xl">x</span> COMBO!
-            </div>
-        </div>
-
         <div class="flex-1 p-4 md:p-8 flex flex-col items-center justify-center w-full relative z-10">
             
             <!-- 主答题卡片 -->
@@ -157,9 +156,6 @@
                     <div class="absolute top-0 left-0 w-full h-2 bg-slate-100">
                         <div id="progressBar" class="h-full bg-[#34A853] transition-all duration-300 w-0"></div>
                     </div>
-                    <button id="bookmarkBtn" class="absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10">
-                        <span>⭐</span>
-                    </button>
 
                     <!-- 使用真实图片展示区域，带加载动画 -->
                     <div class="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] overflow-hidden shadow-lg border-[6px] border-white bg-slate-100 mb-4 shrink-0 relative flex items-center justify-center transition-transform hover:scale-105 group">
@@ -804,20 +800,19 @@
         };
 
         const ui = {
-            petImg: document.getElementById('petImg'), petTitle: document.getElementById('petTitle'), score: document.getElementById('scoreDisplay'), expBar: document.getElementById('expBar'), diff: document.getElementById('nextLevelDiff'), mistakeCount: document.getElementById('mistakeCount'), maxCombo: document.getElementById('maxCombo'), 
+            petImg: document.getElementById('petImg'), petTitle: document.getElementById('petTitle'), score: document.getElementById('scoreDisplay'), expBar: document.getElementById('expBar'), diff: document.getElementById('nextLevelDiff'), mistakeCount: document.getElementById('mistakeCount'), bookmarkCountHeader: document.getElementById('bookmarkCountHeader'),
             topNavList: document.getElementById('topNavList'),
             card: document.getElementById('card'), result: document.getElementById('result'), 
             bar: document.getElementById('progressBar'), 
             qImg: document.getElementById('qImg'), imgLoading: document.getElementById('imgLoading'),
-            text: document.getElementById('qText'), sub: document.getElementById('qSub'), grid: document.getElementById('grid'), tts: document.getElementById('ttsBtn'), bookmarkBtn: document.getElementById('bookmarkBtn'), modal: document.getElementById('levelUpModal'), newPetImg: document.getElementById('newPetImg'), newPetTitle: document.getElementById('newPetTitle'), combo: document.getElementById('comboDisplay'), comboNum: document.getElementById('comboNum'), prevBtn: document.getElementById('prevBtn'), nextBtn: document.getElementById('nextBtn'), petSelectorModal: document.getElementById('petSelectorModal'), petOptionsGrid: document.getElementById('petOptionsGrid'), confirmPetBtn: document.getElementById('confirmPetBtn'), resetModal: document.getElementById('resetModal')
+            text: document.getElementById('qText'), sub: document.getElementById('qSub'), grid: document.getElementById('grid'), tts: document.getElementById('ttsBtn'), modal: document.getElementById('levelUpModal'), newPetImg: document.getElementById('newPetImg'), newPetTitle: document.getElementById('newPetTitle'), prevBtn: document.getElementById('prevBtn'), nextBtn: document.getElementById('nextBtn'), petSelectorModal: document.getElementById('petSelectorModal'), petOptionsGrid: document.getElementById('petOptionsGrid'), confirmPetBtn: document.getElementById('confirmPetBtn'), resetModal: document.getElementById('resetModal')
         };
 
         let tempSelectedPet = null;
 
         function init() {
             if (!state.selectedPetId) openPetSelector();
-            else { updatePetState(); renderTopNav(); ui.mistakeCount.innerText = state.mistakes.size; ui.maxCombo.innerText = state.maxCombo; }
-            ui.bookmarkBtn.addEventListener('click', toggleBookmark);
+            else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
             // 初始化时如果没有选中关卡，自动加载第一个
             if(state.catIdx === -1) loadCategory(0);
         }
@@ -841,7 +836,6 @@
 
             // 重置内存状态
             state.totalScore = 0;
-            state.maxCombo = 0;
             state.mistakes.clear();
             state.bookmarks.clear();
             state.selectedPetId = null;
@@ -856,8 +850,7 @@
             openPetSelector();
             
             // 刷新界面显示
-            ui.mistakeCount.innerText = '0';
-            ui.maxCombo.innerText = '0';
+            updateHeaderCounts();
             renderTopNav();
             
             // 隐藏卡片
@@ -937,26 +930,7 @@
         function renderTopNav() {
             ui.topNavList.innerHTML = '';
             
-            // 1. 我的收藏 (如果有)
-            if (state.bookmarks.size > 0) {
-                const b = document.createElement('button');
-                const isActive = state.catIdx === -100;
-                b.className = `nav-item w-full p-3 rounded-xl flex items-center justify-between transition-all shadow-sm border ${isActive ? 'active bg-white border-[#FBBC05] ring-1 ring-[#FBBC05]' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
-                b.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-lg ${isActive ? 'text-[#FBBC05]' : 'text-slate-400'}">⭐</span>
-                        <span class="font-bold text-sm">我的收藏</span>
-                    </div>
-                    <span class="text-xs bg-yellow-100 px-2 py-0.5 rounded-md text-[#F29900] font-bold">${state.bookmarks.size}</span>
-                `;
-                b.onclick = () => {
-                    loadBookmarks();
-                    collapseNavOnSelect();
-                }; 
-                ui.topNavList.appendChild(b);
-            }
-
-            // 2. 常规关卡 (垂直列表)
+            // 常规关卡 (垂直列表)
             rawData.forEach((cat, idx) => {
                 const btn = document.createElement('button');
                 const isActive = state.catIdx === idx;
@@ -993,7 +967,7 @@
 
         // --- 核心题库逻辑 ---
         function loadCategory(idx) {
-            state.catIdx = idx; state.sessionScore = 0; state.currentCombo = 0;
+            state.catIdx = idx; state.sessionScore = 0;
             
             // 更新导航高亮
             renderTopNav();
@@ -1002,7 +976,7 @@
             ui.result.classList.add('hidden');
 
             if(idx === -99) {
-                // 错题本逻辑 (虽然现在的 UI 把错题本做成了顶部按钮，但保留逻辑以防万一)
+                // 错题本逻辑
                 state.queue = rawData.flatMap(c => c.items).filter(i => state.mistakes.has(i.en));
                 if(state.queue.length === 0) { alert("错题本空空如也，你太棒了！"); return; }
             } else state.queue = [...rawData[idx].items];
@@ -1012,7 +986,7 @@
         }
 
         function loadBookmarks() {
-            state.catIdx = -100; state.sessionScore = 0; state.currentCombo = 0;
+            state.catIdx = -100; state.sessionScore = 0;
             renderTopNav();
             ui.card.classList.remove('hidden');
             ui.result.classList.add('hidden');
@@ -1020,10 +994,15 @@
             if(state.queue.length === 0) { alert("收藏夹为空哦！"); return; }
             state.queue.sort(() => Math.random() - 0.5); state.currIdx = 0; renderQuestion();
         }
+        
+        // 新增：从顶部导航栏点击收藏按钮进入
+        function loadBookmarksFromHeader() {
+            loadBookmarks();
+            collapseNavOnSelect();
+        }
+
         function loadMistakeBook() { 
-            // 复用 loadCategory 的逻辑，传入特殊标记或直接处理
-            // 这里为了简单，直接调用内部逻辑
-            state.catIdx = -99; state.sessionScore = 0; state.currentCombo = 0;
+            state.catIdx = -99; state.sessionScore = 0;
             renderTopNav();
             ui.card.classList.remove('hidden');
             ui.result.classList.add('hidden');
@@ -1085,7 +1064,7 @@
         }
 
         function prevQuestion() { if(state.currIdx > 0) { state.currIdx--; renderQuestion(); } }
-        function skipQuestion() { state.currentCombo = 0; nextQuestion(); }
+        function skipQuestion() { nextQuestion(); }
 
         function checkAnswer(btn, isRight, item, e) {
             if(state.isLocked) return;
@@ -1095,25 +1074,20 @@
 
             if(isRight) {
                 btn.classList.add('correct');
-                state.currentCombo++;
-                addScore(state.currentCombo >= 6 ? 30 : state.currentCombo >= 3 ? 20 : 10, touchX, touchY);
-                if(state.currentCombo > 1) showCombo(state.currentCombo);
+                addScore(10, touchX, touchY); // 固定每题 10 分
                 if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
                 speak(item.en);
                 setTimeout(nextQuestion, 800);
             } else {
                 btn.classList.add('wrong');
-                state.currentCombo = 0;
                 if(!state.mistakes.has(item.en)) {
                     state.mistakes.add(item.en); saveMistakes();
-                    ui.mistakeCount.classList.add('scale-150', 'text-red-600');
-                    setTimeout(() => ui.mistakeCount.classList.remove('scale-150', 'text-red-600'), 400);
+                    updateHeaderCounts();
                 }
                 Array.from(ui.grid.children).forEach(b => { if(b.dataset.val === item.en) { b.classList.add('correct'); b.style.transform = "scale(1.05)"; } });
                 speak(item.en);
                 setTimeout(nextQuestion, 1500);
             }
-            if(state.currentCombo > state.maxCombo) { state.maxCombo = state.currentCombo; ui.maxCombo.innerText = state.maxCombo; localStorage.setItem('edu_maxCombo', state.maxCombo); }
         }
 
         function addScore(pts, x, y) {
@@ -1123,11 +1097,6 @@
             setTimeout(() => el.remove(), 800);
         }
 
-        function showCombo(num) {
-            ui.comboNum.innerText = num; ui.combo.style.opacity = '1'; ui.combo.style.transform = 'scale(1) rotate(0deg)';
-            setTimeout(() => { ui.combo.style.opacity = '0'; ui.combo.style.transform = 'scale(0.5) rotate(12deg)'; }, 800);
-        }
-
         function nextQuestion() { state.currIdx++; if(state.currIdx < state.queue.length) renderQuestion(); else finishLevel(); }
         function finishLevel() {
             ui.bar.style.width = '100%';
@@ -1135,20 +1104,27 @@
         }
         function reloadCurrent() { if (state.catIdx === -100) loadBookmarks(); else loadCategory(state.catIdx); }
 
-        function toggleBookmark() {
+        // 新增：切换当前题目收藏状态（可通过键盘快捷键或其他方式触发，此处暂留逻辑备用，或绑定到双击题目等）
+        function toggleCurrentBookmark() {
             const item = state.queue[state.currIdx]; if (!item) return;
-            if (state.bookmarks.has(item.en)) { state.bookmarks.delete(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
-            else { state.bookmarks.add(item.en); ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
-            saveBookmarks(); renderTopNav();
-        }
-        function updateBookmarkButton(item) {
-            if (!item) return;
-            if (state.bookmarks.has(item.en)) { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-[#FFF8E1] text-[#FBBC05] text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-yellow-200 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
-            else { ui.bookmarkBtn.className = "absolute top-6 right-6 w-12 h-12 rounded-full bg-white text-slate-300 text-xl flex justify-center items-center shadow-md hover:scale-110 active:scale-95 transition-all border border-slate-100 z-10"; ui.bookmarkBtn.innerHTML = '<span>⭐</span>'; }
+            if (state.bookmarks.has(item.en)) { 
+                state.bookmarks.delete(item.en); 
+            } else { 
+                state.bookmarks.add(item.en); 
+            }
+            saveBookmarks(); 
+            updateHeaderCounts();
+            renderTopNav();
+            alert(state.bookmarks.has(item.en) ? "已加入收藏" : "已取消收藏");
         }
 
         function saveBookmarks() { localStorage.setItem('edu_bookmarks', JSON.stringify([...state.bookmarks])); }
-        function saveMistakes() { localStorage.setItem('edu_mistakes', JSON.stringify([...state.mistakes])); ui.mistakeCount.innerText = state.mistakes.size; }
+        function saveMistakes() { localStorage.setItem('edu_mistakes', JSON.stringify([...state.mistakes])); }
+        
+        function updateHeaderCounts() {
+            ui.mistakeCount.innerText = state.mistakes.size;
+            ui.bookmarkCountHeader.innerText = state.bookmarks.size;
+        }
 
         function setMode(m) {
             state.mode = m;
@@ -1163,13 +1139,13 @@
         init();
     </script>
 	<script>
-	if ('serviceWorker' in navigator) {
-	  window.addEventListener('load', () => {
-		navigator.serviceWorker.register('./sw.js')
-		  .then(reg => console.log('SW registered:', reg))
-		  .catch(err => console.error('SW failed:', err));
-	  });
-	}
+		if ('serviceWorker' in navigator) {
+		  window.addEventListener('load', () => {
+			navigator.serviceWorker.register('./sw.js')
+			  .then(reg => console.log('SW registered:', reg))
+			  .catch(err => console.error('SW failed:', err));
+		  });
+		}
 	</script>
 </body>
 </html>
