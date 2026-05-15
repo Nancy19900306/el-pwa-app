@@ -1,4 +1,5 @@
 const CACHE_NAME = 'english-cache-v1';
+// 使用相对路径，适配子目录部署（/el-pwa-app/）
 const urlsToCache = [
     './',
     './index.html',
