@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>单词大冒险：终极养成版 (AI 绘图完整版)</title>
+    <title>单词大冒险</title>
     <!-- 引入必要的库 -->
     <script src="https://data.zcat.cn/cdn/npm/@tailwindcss/3.4.17.js"></script>
 	<script src="./js/pinyin-pro-3.18.2.js"></script>
@@ -16,27 +16,22 @@
     <style>
         /* 核心基础样式与护眼背景 */
         body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background-color: #F5F7FB; -webkit-tap-highlight-color: transparent; overflow: hidden; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
+        
         @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 70% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-50px); opacity: 0; } }
         @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
-        /* 大尺寸、带物理按压感的选项按钮 - 鲜艳配色版 */
+        /* 大尺寸、带物理按压感的选项按钮 */
         .option-btn { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); border-bottom: 6px solid #e2e8f0; position: relative; top: 0; }
         .option-btn:active { top: 6px; border-bottom: 0px solid transparent; }
-        /* 正确：鲜艳成功绿 */
         .option-btn.correct { background-color: #DCFCE7 !important; border-color: #22C55E !important; border-bottom-color: #15803D !important; color: #166534 !important; }
-        /* 错误：鲜艳警报红 */
         .option-btn.wrong { background-color: #FEE2E2 !important; border-color: #EF4444 !important; border-bottom-color: #B91C1C !important; color: #991B1B !important; animation: shake 0.3s ease-in-out; }
 
         /* 顶部导航激活状态 */
         .nav-item.active { background-color: #E8F0FE; color: #1967D2; font-weight: bold; border-bottom: 4px solid #4285F4; }
-        .nav-item.bookmark { background-color: #FFF8E1; border-left: none; border-bottom: 4px solid #FBBC05; }
 
-        /* 导航折叠区域样式 - 重点优化部分 */
+        /* --- 核心修复：导航栏滚动条样式 --- */
         #navContainer {
             transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
             overflow: hidden;
@@ -44,21 +39,35 @@
             opacity: 0;
         }
         #navContainer.expanded {
-            /* 修正：设置为 75vh，留出底部空间给主操作区，防止遮挡 */
-            max-height: 75vh; 
+            /* 关键修复：使用固定像素值代替 vh 单位，确保计算准确，留出足够空间 */
+            max-height: 500px; 
             opacity: 1;
+            /* 新增：允许容器内部滚动，这是滚动条生效的关键 */
+            overflow-y: auto;
+            /* 优化滚动条外观 (Firefox) */
+            scrollbar-width: thin;
+            scrollbar-color: #94a3b8 #f1f5f9;
+        }
+        /* 优化滚动条外观 (Chrome/Safari/Edge) */
+        #navContainer.expanded::-webkit-scrollbar {
+            width: 6px;
+        }
+        #navContainer.expanded::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        #navContainer.expanded::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 3px;
         }
         .nav-list {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
             padding: 0.75rem;
-            /* 新增：允许列表内部滚动，不撑破容器 */
-            overflow-y: auto; 
-            /* 优化滚动条样式 */
-            scrollbar-width: thin;
-            scrollbar-color: #CBD5E1 #F1F5F9;
+            /* 移除这里的 overflow，交由父容器控制，避免冲突 */
         }
+        
         .nav-toggle-btn {
             transition: transform 0.3s ease;
         }
@@ -106,7 +115,7 @@
                 </div>
             </div>
 
-            <!-- 右侧：统计与设置 -->
+            <!-- 右侧：统计与设置 (已移除火焰，添加收藏) -->
             <div class="flex items-center gap-2 md:gap-3 shrink-0">
                 <button onclick="loadMistakeBook()" class="flex flex-col items-center justify-center bg-white/10 hover:bg-white/20 p-2 rounded-lg transition-colors active:scale-95 group backdrop-blur-sm border border-white/10">
                     <div class="text-[#FFCDD2] group-hover:scale-110 transition-transform"><span class="text-lg md:text-xl">📚</span></div>
@@ -137,7 +146,7 @@
             </div>
         </div>
 
-        <!-- 第三行：可折叠的垂直导航区 -->
+        <!-- 第三行：可折叠的垂直导航区 (已应用滚动修复) -->
         <div id="navContainer" class="bg-slate-50 border-b border-slate-200 shadow-inner">
             <div id="topNavList" class="nav-list"></div>
         </div>
@@ -148,14 +157,17 @@
         <!-- 装饰背景 -->
         <div class="absolute top-10 left-10 w-64 h-64 bg-white/40 rounded-full blur-3xl pointer-events-none"></div>
         
+        <!-- 已移除连击提示动画 -->
+
         <div class="flex-1 p-4 md:p-8 flex flex-col items-center justify-center w-full relative z-10">
             
-            <!-- 主答题卡片 -->
-            <div id="card" class="hidden w-full max-w-5xl h-full max-h-[800px] bg-white rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 relative animate-popIn">
+            <!-- 主答题卡片 (添加双击事件用于收藏) -->
+            <div id="card" class="hidden w-full max-w-5xl h-full max-h-[800px] bg-white rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-slate-100 relative animate-popIn" ondblclick="toggleCurrentBookmark()">
                 <div class="h-[45%] bg-gradient-to-b from-slate-50 to-white relative flex flex-col items-center justify-center p-4">
                     <div class="absolute top-0 left-0 w-full h-2 bg-slate-100">
                         <div id="progressBar" class="h-full bg-[#34A853] transition-all duration-300 w-0"></div>
                     </div>
+                    <!-- 已移除右上角收藏按钮 -->
 
                     <!-- 使用真实图片展示区域，带加载动画 -->
                     <div class="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] overflow-hidden shadow-lg border-[6px] border-white bg-slate-100 mb-4 shrink-0 relative flex items-center justify-center transition-transform hover:scale-105 group">
@@ -226,7 +238,7 @@
             </div>
         </div>
 
-        <!-- 【新增】重置确认弹窗 -->
+        <!-- 重置确认弹窗 -->
         <div id="resetModal" class="fixed inset-0 bg-slate-900/80 z-[60] flex items-center justify-center hidden backdrop-blur-sm">
             <div class="bg-white rounded-[2rem] p-8 text-center max-w-md w-full mx-4 shadow-2xl relative animate-popIn border-t-8 border-[#EA4335]">
                 <div class="w-20 h-20 mx-auto bg-[#FCE8E6] rounded-full flex items-center justify-center mb-6">
@@ -259,7 +271,7 @@
         ];
 
         // ==========================================
-        // 【完整 370+ 核心词库】全量替换为 AI 绘图 API 链接
+        // 【完整词库】
         // ==========================================
         const rawData = 
 [
@@ -785,14 +797,13 @@
         // 状态管理
         let state = {
             totalScore: parseInt(localStorage.getItem('edu_totalScore')) || 0,
-            maxCombo: parseInt(localStorage.getItem('edu_maxCombo')) || 0,
             mistakes: new Set(JSON.parse(localStorage.getItem('edu_mistakes') || '[]')),
             bookmarks: new Set(JSON.parse(localStorage.getItem('edu_bookmarks') || '[]')),
             currentCombo: 0,
             currentLevelIndex: 0,
             selectedPetId: localStorage.getItem('edu_selectedPetId') || null,
             mode: 'en-cn',
-            catIdx: 0, // 默认选中第一个
+            catIdx: 0,
             queue: [],
             currIdx: 0,
             isLocked: false,
@@ -813,28 +824,19 @@
         function init() {
             if (!state.selectedPetId) openPetSelector();
             else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
-            // 初始化时如果没有选中关卡，自动加载第一个
             if(state.catIdx === -1) loadCategory(0);
         }
 
-        // --- 重置功能核心逻辑 ---
-        function openResetModal() {
-            ui.resetModal.classList.remove('hidden');
-        }
-
-        function closeResetModal() {
-            ui.resetModal.classList.add('hidden');
-        }
+        // --- 重置功能 ---
+        function openResetModal() { ui.resetModal.classList.remove('hidden'); }
+        function closeResetModal() { ui.resetModal.classList.add('hidden'); }
 
         function confirmReset() {
-            // 清除所有 LocalStorage
             localStorage.removeItem('edu_totalScore');
-            localStorage.removeItem('edu_maxCombo');
             localStorage.removeItem('edu_mistakes');
             localStorage.removeItem('edu_bookmarks');
             localStorage.removeItem('edu_selectedPetId');
 
-            // 重置内存状态
             state.totalScore = 0;
             state.mistakes.clear();
             state.bookmarks.clear();
@@ -843,20 +845,12 @@
             state.sessionScore = 0;
             state.currentCombo = 0;
 
-            // 关闭弹窗
             closeResetModal();
-            
-            // 重新初始化宠物选择（因为 ID 被清除了）
             openPetSelector();
-            
-            // 刷新界面显示
             updateHeaderCounts();
             renderTopNav();
-            
-            // 隐藏卡片
             ui.card.classList.add('hidden');
             ui.result.classList.add('hidden');
-            
             alert("进度已重置！请重新选择你的宠物伙伴。");
         }
 
@@ -882,7 +876,6 @@
             if (!tempSelectedPet) return;
             state.selectedPetId = tempSelectedPet; localStorage.setItem('edu_selectedPetId', state.selectedPetId);
             ui.petSelectorModal.classList.add('hidden'); updatePetState(); renderTopNav();
-            // 选完宠物自动开始第一个关卡
             loadCategory(0);
         }
 
@@ -915,13 +908,17 @@
         // --- 顶部导航栏 ---
         function toggleNav() {
             const container = document.getElementById('navContainer');
-            const btnIcon = document.querySelector('.nav-toggle-btn i');
             const btnWrapper = document.querySelector('.nav-toggle-btn');
             
             if (container.classList.contains('expanded')) {
+                // 正在关闭：无需特殊操作，卡片保持原状或已由上一轮操作隐藏
                 container.classList.remove('expanded');
                 btnWrapper.classList.add('rotated');
             } else {
+                // 正在展开：隐藏答题卡片和结算面板，只留背景，让列表清晰可见
+                ui.card.classList.add('hidden');
+                ui.result.classList.add('hidden');
+                
                 container.classList.add('expanded');
                 btnWrapper.classList.remove('rotated');
             }
@@ -930,15 +927,14 @@
         function renderTopNav() {
             ui.topNavList.innerHTML = '';
             
-            // 常规关卡 (垂直列表)
+            // 仅渲染常规关卡 (已移除我的收藏项)
             rawData.forEach((cat, idx) => {
                 const btn = document.createElement('button');
                 const isActive = state.catIdx === idx;
                 
-                // 提取标题中的图标和主要文字
                 const parts = cat.title.split(' ');
                 const icon = parts[0];
-                const name = parts.slice(1).join(' ').replace(/[()]/g, ''); // 移除括号
+                const name = parts.slice(1).join(' ').replace(/[()]/g, ''); 
                 
                 btn.className = `nav-item w-full p-3 rounded-xl flex items-center justify-between transition-all shadow-sm border ${isActive ? 'active bg-white border-[#4285F4] ring-1 ring-[#4285F4]' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
                 btn.innerHTML = `
@@ -949,9 +945,26 @@
                     ${isActive ? '<span class="text-[#4285F4]">✅</span>' : ''}
                 `;
                 btn.onclick = () => {
-                    loadCategory(idx);
+                    // 1. 先加载数据但不立即渲染界面（避免闪烁）
+                    state.catIdx = idx; state.sessionScore = 0;
+                    if(idx === -99) {
+                        state.queue = rawData.flatMap(c => c.items).filter(i => state.mistakes.has(i.en));
+                        if(state.queue.length === 0) { alert("错题本空空如也，你太棒了！"); return; }
+                    } else state.queue = [...rawData[idx].items];
+                    state.queue.sort(() => Math.random() - 0.5);
+                    state.currIdx = 0;
+                    
+                    // 2. 更新高亮
+                    renderTopNav();
+                    
+                    // 3. 折叠菜单
                     collapseNavOnSelect();
-                }; 
+                    
+                    // 4. 显示卡片并渲染题目
+                    ui.card.classList.remove('hidden');
+                    ui.result.classList.add('hidden');
+                    renderQuestion();
+                };
                 ui.topNavList.appendChild(btn);
             });
         }
@@ -966,49 +979,54 @@
         }
 
         // --- 核心题库逻辑 ---
-        function loadCategory(idx) {
+        function loadCategory(idx, forceShow = true) {
             state.catIdx = idx; state.sessionScore = 0;
             
-            // 更新导航高亮
             renderTopNav();
-
-            ui.card.classList.remove('hidden');
-            ui.result.classList.add('hidden');
+            
+            // 只有 forceShow 为 true 时才切换界面显示
+            if (forceShow) {
+                ui.card.classList.remove('hidden');
+                ui.result.classList.add('hidden');
+            }
 
             if(idx === -99) {
-                // 错题本逻辑
                 state.queue = rawData.flatMap(c => c.items).filter(i => state.mistakes.has(i.en));
                 if(state.queue.length === 0) { alert("错题本空空如也，你太棒了！"); return; }
             } else state.queue = [...rawData[idx].items];
             
             state.queue.sort(() => Math.random() - 0.5);
-            state.currIdx = 0; renderQuestion();
+            state.currIdx = 0; 
+            if (forceShow) renderQuestion();
         }
 
         function loadBookmarks() {
             state.catIdx = -100; state.sessionScore = 0;
+            state.queue = rawData.flatMap(c => c.items).filter(i => state.bookmarks.has(i.en));
+            if(state.queue.length === 0) { alert("收藏夹为空哦！"); return; }
+            state.queue.sort(() => Math.random() - 0.5); state.currIdx = 0;
+            
             renderTopNav();
             ui.card.classList.remove('hidden');
             ui.result.classList.add('hidden');
-            state.queue = rawData.flatMap(c => c.items).filter(i => state.bookmarks.has(i.en));
-            if(state.queue.length === 0) { alert("收藏夹为空哦！"); return; }
-            state.queue.sort(() => Math.random() - 0.5); state.currIdx = 0; renderQuestion();
+            renderQuestion();
         }
         
-        // 新增：从顶部导航栏点击收藏按钮进入
         function loadBookmarksFromHeader() {
+            // 从顶部按钮进入时，不需要折叠操作，直接加载
             loadBookmarks();
-            collapseNavOnSelect();
         }
 
         function loadMistakeBook() { 
             state.catIdx = -99; state.sessionScore = 0;
+            state.queue = rawData.flatMap(c => c.items).filter(i => state.mistakes.has(i.en));
+            if(state.queue.length === 0) { alert("错题本空空如也，你太棒了！"); return; }
+            state.queue.sort(() => Math.random() - 0.5); state.currIdx = 0;
+            
             renderTopNav();
             ui.card.classList.remove('hidden');
             ui.result.classList.add('hidden');
-            state.queue = rawData.flatMap(c => c.items).filter(i => state.mistakes.has(i.en));
-            if(state.queue.length === 0) { alert("错题本空空如也，你太棒了！"); return; }
-            state.queue.sort(() => Math.random() - 0.5); state.currIdx = 0; renderQuestion();
+            renderQuestion();
         }
 
         function renderQuestion() {
@@ -1018,7 +1036,6 @@
             ui.prevBtn.disabled = state.currIdx === 0;
             if(state.currIdx === state.queue.length - 1) { ui.nextBtn.innerHTML = `<span>完成关卡</span><span class="ml-2 text-[#34A853]">🏁</span>`; ui.nextBtn.onclick = finishLevel; }
             else { ui.nextBtn.innerHTML = `<span>跳过本题</span><span class="ml-2">➡️</span>`; ui.nextBtn.onclick = skipQuestion; }
-            updateBookmarkButton(item);
 
             const isEn = state.mode === 'en-cn';
             if(isEn) {
@@ -1031,12 +1048,10 @@
                 ui.tts.classList.add('hidden');
             }
 
-            // 更新图片，并显示加载状态
             ui.qImg.style.opacity = '0';
             ui.imgLoading.style.display = 'flex';
             ui.qImg.src = item.img;
             
-            // 触发重新入场动画
             ui.qImg.classList.remove('animate-popIn');
             void ui.qImg.offsetWidth; 
             ui.qImg.classList.add('animate-popIn');
@@ -1049,13 +1064,10 @@
             opts.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.dataset.val = opt.en;
-                // 响应式设计：手机上 padding 和字体稍小，平板及以上恢复大尺寸
                 btn.className = "option-btn w-full h-full min-h-[80px] sm:min-h-[100px] bg-white rounded-2xl p-2 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 shadow-sm border-2 border-slate-200 hover:bg-[#F8F9FA] hover:border-slate-300";
                 if(isEn) {
-                    // 中文选项：手机 text-xl，桌面 text-2xl
                     btn.innerHTML = `<span class="text-xl sm:text-2xl font-black text-slate-700 leading-none">${opt.cn}</span>`;
                 } else {
-                    // 英文选项：手机 text-2xl，桌面 text-3xl
                     btn.innerHTML = `<span class="text-2xl sm:text-3xl font-black text-slate-700 leading-none">${opt.en}</span><span class="ipa-box text-xs sm:text-base text-slate-400">${opt.ipa}</span>`;
                 }
                 btn.onclick = (e) => checkAnswer(btn, opt.en === item.en, item, e);
@@ -1104,7 +1116,7 @@
         }
         function reloadCurrent() { if (state.catIdx === -100) loadBookmarks(); else loadCategory(state.catIdx); }
 
-        // 新增：切换当前题目收藏状态（可通过键盘快捷键或其他方式触发，此处暂留逻辑备用，或绑定到双击题目等）
+        // 新增：双击收藏功能
         function toggleCurrentBookmark() {
             const item = state.queue[state.currIdx]; if (!item) return;
             if (state.bookmarks.has(item.en)) { 
@@ -1115,7 +1127,16 @@
             saveBookmarks(); 
             updateHeaderCounts();
             renderTopNav();
-            alert(state.bookmarks.has(item.en) ? "已加入收藏" : "已取消收藏");
+            // 简单的视觉反馈，不使用 alert 以免打断流程
+            const feedback = document.createElement('div');
+            feedback.className = 'score-float';
+            feedback.innerText = state.bookmarks.has(item.en) ? '⭐ 已收藏' : '❌ 已取消';
+            feedback.style.color = state.bookmarks.has(item.en) ? '#FBBC05' : '#94a3b8';
+            feedback.style.left = '50%';
+            feedback.style.top = '40%';
+            feedback.style.transform = 'translate(-50%, -50%)';
+            document.body.appendChild(feedback);
+            setTimeout(() => feedback.remove(), 800);
         }
 
         function saveBookmarks() { localStorage.setItem('edu_bookmarks', JSON.stringify([...state.bookmarks])); }
