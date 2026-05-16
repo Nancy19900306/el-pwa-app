@@ -843,7 +843,6 @@
 			
 			    // 简化的用户交互激活 - 只需这一小段
 			const activateOnClick = () => {
-				activateSpeech();
 				document.removeEventListener('click', activateOnClick);
 				document.removeEventListener('touchstart', activateOnClick);
 			};
@@ -1134,9 +1133,10 @@
 				addScore(10, touchX, touchY);
 				if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
 				
-				activateSpeech();  // 确保已激活
-				autoSpeak(item.en);  // 使用 autoSpeak
+				// 播放声音（异步，不阻塞）
+				autoSpeak(item.en);
 				
+				// 延迟后跳转下一题（原有逻辑不变）
 				setTimeout(nextQuestion, 800);
 			} else {
 				btn.classList.add('wrong');
@@ -1144,11 +1144,18 @@
 					state.mistakes.add(item.en); saveMistakes();
 					updateHeaderCounts();
 				}
-				Array.from(ui.grid.children).forEach(b => { if(b.dataset.val === item.en) { b.classList.add('correct'); b.style.transform = "scale(1.05)"; } });
-			
-				activateSpeech();  // 确保已激活
-				autoSpeak(item.en);  // 使用 autoSpeak
+				// 显示正确答案
+				Array.from(ui.grid.children).forEach(b => { 
+					if(b.dataset.val === item.en) { 
+						b.classList.add('correct'); 
+						b.style.transform = "scale(1.05)"; 
+					} 
+				});
 				
+				// 播放声音（异步，不阻塞）
+				autoSpeak(item.en);
+				
+				// 延迟后跳转下一题（原有逻辑不变）
 				setTimeout(nextQuestion, 1500);
 			}
 		}
@@ -1198,74 +1205,115 @@
             ui.bookmarkCountHeader.innerText = state.bookmarks.size;
         }
 
-        function setMode(m) {
-            state.mode = m;
-            document.getElementById('btnEnCn').className = m === 'en-cn' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
-            document.getElementById('btnCnEn').className = m === 'cn-en' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
-            if(state.catIdx !== -1 && state.catIdx !== -99 && state.catIdx !== -100) loadCategory(state.catIdx);
-        }
 
-
-
-		// ========== 简单可靠的 TTS 方案 ==========
-		let isSpeechActivated = false;
-
-		// 激活语音（需要用户首次点击）
-		function activateSpeech() {
-			if (isSpeechActivated) return;
-			if (window.speechSynthesis) {
-				const silent = new SpeechSynthesisUtterance('');
-				silent.volume = 0;
-				window.speechSynthesis.speak(silent);
-				setTimeout(() => window.speechSynthesis.cancel(), 50);
-			}
-			isSpeechActivated = true;
-			console.log('语音已激活');
-		}
-
-		// 播放函数
-		function speakSimple(txt) {
-			if (!txt || !window.speechSynthesis) return;
-			if (!isSpeechActivated) return;  // 未激活时不播放
+		
+		function setMode(m) {
+			state.mode = m;
+			document.getElementById('btnEnCn').className = m === 'en-cn' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
+			document.getElementById('btnCnEn').className = m === 'cn-en' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
 			
-			try {
-				window.speechSynthesis.cancel();
-				const utterance = new SpeechSynthesisUtterance(txt);
-				utterance.lang = 'en-US';
-				utterance.rate = 0.9;
-				utterance.pitch = 1.0;
-				window.speechSynthesis.speak(utterance);
-			} catch(e) {}
+			// 折叠关卡菜单
+			collapseNavOnSelect();
+			
+			if(state.catIdx !== -1 && state.catIdx !== -99 && state.catIdx !== -100) loadCategory(state.catIdx);
+	}
+
+		// ========== 有道 TTS（国内稳定，不影响答题流程） ==========
+		let isAudioReady = false;
+
+		// 激活音频（Chrome/手机需要用户首次交互）
+		function activateAudio() {
+			if (isAudioReady) return;
+			// 创建无声Audio元素激活音频权限
+			const silentAudio = new Audio();
+			silentAudio.volume = 0;
+			silentAudio.play().catch(e => console.log('音频已激活'));
+			isAudioReady = true;
+			console.log('音频系统已准备就绪');
 		}
 
-		// 播放按钮
-		function playAudio() {
+		// 播放单词（使用有道词典接口）
+		function playWordAudio(word) {
+			return new Promise((resolve, reject) => {
+				if (!word) {
+					reject('单词为空');
+					return;
+				}
+				
+				// 有道词典语音接口（国内稳定，无需密钥）
+				const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=1`;
+				
+				const audio = new Audio();
+				audio.src = url;
+				
+				audio.onended = () => {
+					console.log('播放完成:', word);
+					resolve(true);
+				};
+				
+				audio.onerror = (e) => {
+					console.error('有道播放失败:', word, e);
+					// 可选：如果失败可以尝试备用方案，但基本不会失败
+					reject(e);
+				};
+				
+				audio.play().catch(reject);
+			});
+		}
+
+		// 播放按钮点击处理
+		async function playAudio() {
 			const item = state.queue[state.currIdx];
-			if (!item || !item.en) return;
+			if (!item || !item.en) {
+				console.warn('没有可播放的单词');
+				return;
+			}
 			
-			activateSpeech();
+			// 激活音频（重要）
+			activateAudio();
 			
+			// 按钮动画
 			const ttsBtn = document.getElementById('ttsBtn');
 			if (ttsBtn) {
 				ttsBtn.classList.add('scale-110', 'bg-[#D2E3FC]');
 				setTimeout(() => ttsBtn.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
 			}
 			
-			speakSimple(item.en);
+			try {
+				await playWordAudio(item.en);
+			} catch(e) {
+				console.error('播放失败:', e);
+				// 显示友好提示（不影响答题）
+				const tip = document.createElement('div');
+				tip.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-3 py-1 rounded-full text-xs z-50';
+				tip.innerText = '⚠️ 播放失败';
+				document.body.appendChild(tip);
+				setTimeout(() => tip.remove(), 1500);
+			}
 		}
 
-		// 答题自动播放
+		// 答题时的自动播放（不阻塞答题流程）
 		function autoSpeak(word) {
-			if (!isSpeechActivated) return;
-			speakSimple(word);
+			if (!word) return;
+			// 异步播放，不等待，不影响答题跳转
+			activateAudio();
+			playWordAudio(word).catch(e => console.log('自动播放失败:', e));
 		}
 
 		function initVoices() {
-			// 什么都不做，静默加载
-			if (window.speechSynthesis) {
-				window.speechSynthesis.getVoices();
-			}
+			console.log('有道 TTS 已就绪');
 		}
+
+		// 页面交互时自动激活音频（不影响任何功能）
+		setTimeout(() => {
+			const activateOnInteraction = () => {
+				activateAudio();
+				document.removeEventListener('click', activateOnInteraction);
+				document.removeEventListener('touchstart', activateOnInteraction);
+			};
+			document.addEventListener('click', activateOnInteraction);
+			document.addEventListener('touchstart', activateOnInteraction);
+		}, 100);
 
         init();
     </script>
