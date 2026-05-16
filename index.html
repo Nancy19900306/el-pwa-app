@@ -1189,34 +1189,34 @@
         function speak(txt) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'en-US'; u.rate = 0.9; window.speechSynthesis.speak(u); } }
 -->		
 		function speak(txt) {
-		if (!txt) return;
-		if ('speechSynthesis' in window) {
-			window.speechSynthesis.cancel();
-			setTimeout(() => {
-				const utterance = new SpeechSynthesisUtterance(txt);
-				utterance.lang = 'en-US';
-				utterance.rate = 0.9;
-				utterance.pitch = 1.0;
-				utterance.volume = 1.0;
+			if (!txt) return;
+			if ('speechSynthesis' in window) {
+				window.speechSynthesis.cancel();
 				
-				// 移动端：确保有可用语音
-				if (window.speechSynthesis.getVoices().length === 0) {
-					window.speechSynthesis.addEventListener('voiceschanged', function onVoices() {
-						window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
-						const voices = window.speechSynthesis.getVoices();
-						const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
-						if (englishVoice) utterance.voice = englishVoice;
-						window.speechSynthesis.speak(utterance);
-					});
-				} else {
+				const trySpeak = () => {
+					const utterance = new SpeechSynthesisUtterance(txt);
+					utterance.lang = 'en-US';
+					utterance.rate = 0.9;
+					utterance.pitch = 1.0;
+					utterance.volume = 1.0;
+					
 					const voices = window.speechSynthesis.getVoices();
 					const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
 					if (englishVoice) utterance.voice = englishVoice;
 					window.speechSynthesis.speak(utterance);
+				};
+				
+				// 等待 voices 加载
+				if (window.speechSynthesis.getVoices().length === 0) {
+					window.speechSynthesis.addEventListener('voiceschanged', function onVoices() {
+						window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
+						setTimeout(trySpeak, 50);
+					});
+				} else {
+					setTimeout(trySpeak, 50);
 				}
-			}, 50);
+			}
 		}
-	}
 		
 <!--		
         function playAudio() { const item = state.queue[state.currIdx]; if(item) speak(item.en); ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]'); setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200); }
@@ -1224,8 +1224,9 @@
 		function playAudio() {
 			const item = state.queue[state.currIdx];
 			if (item && item.en) {
-				ui.ttsBtn.classList.add('scale-110', 'bg-[#D2E3FC]');
-				setTimeout(() => ui.ttsBtn.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
+					
+				ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]');
+				setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
 				
 				// 移动端：先播放一个静音片段来激活音频上下文
 				if (window.speechSynthesis) {
