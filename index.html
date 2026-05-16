@@ -833,17 +833,24 @@
             else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
             if(state.catIdx === -1) loadCategory(0);
 			
-			
-			// 移动端兼容：首次触摸时静默激活语音系统
+						
+			// 移动端语音激活：用户首次点击页面任意位置时激活
 			if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-				document.body.addEventListener('touchstart', function once() {
+				const activateAudio = function() {
 					if (window.speechSynthesis) {
+						// 先取消任何待处理的语音
+						window.speechSynthesis.cancel();
+						// 播放一个极短的静音
 						const silent = new SpeechSynthesisUtterance('');
 						silent.volume = 0;
 						window.speechSynthesis.speak(silent);
+						console.log("语音系统已激活");
 					}
-					document.body.removeEventListener('touchstart', once);
-				});
+					document.body.removeEventListener('touchstart', activateAudio);
+					document.body.removeEventListener('click', activateAudio);
+				};
+				document.body.addEventListener('touchstart', activateAudio);
+				document.body.addEventListener('click', activateAudio);
 			}
 			
 			
@@ -1190,31 +1197,34 @@
 -->		
 		function speak(txt) {
 			if (!txt) return;
-			if ('speechSynthesis' in window) {
-				window.speechSynthesis.cancel();
-				
-				const trySpeak = () => {
-					const utterance = new SpeechSynthesisUtterance(txt);
-					utterance.lang = 'en-US';
-					utterance.rate = 0.9;
-					utterance.pitch = 1.0;
-					utterance.volume = 1.0;
-					
-					const voices = window.speechSynthesis.getVoices();
-					const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
-					if (englishVoice) utterance.voice = englishVoice;
-					window.speechSynthesis.speak(utterance);
-				};
-				
-				// 等待 voices 加载
-				if (window.speechSynthesis.getVoices().length === 0) {
-					window.speechSynthesis.addEventListener('voiceschanged', function onVoices() {
-						window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
-						setTimeout(trySpeak, 50);
-					});
-				} else {
-					setTimeout(trySpeak, 50);
-				}
+			if (!window.speechSynthesis) {
+				console.warn("浏览器不支持语音");
+				return;
+			}
+			
+			// 取消任何正在进行的语音
+			window.speechSynthesis.cancel();
+			
+			// 创建一个新的语音实例
+			const utterance = new SpeechSynthesisUtterance(txt);
+			utterance.lang = 'en-US';
+			utterance.rate = 0.9;
+			utterance.pitch = 1.0;
+			utterance.volume = 1.0;
+			
+			// 尝试获取英语语音
+			const setVoiceAndSpeak = () => {
+				const voices = window.speechSynthesis.getVoices();
+				const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
+				if (englishVoice) utterance.voice = englishVoice;
+				window.speechSynthesis.speak(utterance);
+			};
+			
+			// 确保 voices 已加载
+			if (window.speechSynthesis.getVoices().length === 0) {
+				window.speechSynthesis.addEventListener('voiceschanged', setVoiceAndSpeak, { once: true });
+			} else {
+				setVoiceAndSpeak();
 			}
 		}
 		
@@ -1223,22 +1233,23 @@
 -->
 		function playAudio() {
 			const item = state.queue[state.currIdx];
-			if (item && item.en) {
-					
-				ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]');
-				setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
+			if (!item || !item.en) return;
+			
+			// 视觉反馈
+			ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]');
+			setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
+			
+			// 移动端：先尝试播放一个极短的静音来激活音频上下文
+			if (window.speechSynthesis) {
+				// 取消之前的语音
+				window.speechSynthesis.cancel();
 				
-				// 移动端：先播放一个静音片段来激活音频上下文
-				if (window.speechSynthesis) {
-					const silent = new SpeechSynthesisUtterance('');
-					silent.volume = 0;
-					window.speechSynthesis.speak(silent);
-					setTimeout(() => {
-						speak(item.en);
-					}, 30);
-				} else {
+				// 延迟一点点再播放，确保取消完成
+				setTimeout(() => {
 					speak(item.en);
-				}
+				}, 50);
+			} else {
+				speak(item.en);
 			}
 		}		
 		
