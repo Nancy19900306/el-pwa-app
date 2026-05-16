@@ -829,29 +829,31 @@
         let tempSelectedPet = null;
 
         function init() {
+
             if (!state.selectedPetId) openPetSelector();
             else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
             if(state.catIdx === -1) loadCategory(0);
 			
 						
-			// 移动端语音激活：用户首次点击页面任意位置时激活
+			// 移动端语音激活 - 增强版
+		(function initAudio() {
 			if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-				const activateAudio = function() {
+				const activateSpeech = function() {
 					if (window.speechSynthesis) {
-						// 先取消任何待处理的语音
+						// 同步方式激活
 						window.speechSynthesis.cancel();
-						// 播放一个极短的静音
 						const silent = new SpeechSynthesisUtterance('');
 						silent.volume = 0;
 						window.speechSynthesis.speak(silent);
-						console.log("语音系统已激活");
+						console.log("🎤 语音系统已激活");
 					}
-					document.body.removeEventListener('touchstart', activateAudio);
-					document.body.removeEventListener('click', activateAudio);
+					document.body.removeEventListener('touchstart', activateSpeech);
+					document.body.removeEventListener('click', activateSpeech);
 				};
-				document.body.addEventListener('touchstart', activateAudio);
-				document.body.addEventListener('click', activateAudio);
+				document.body.addEventListener('touchstart', activateSpeech);
+				document.body.addEventListener('click', activateSpeech);
 			}
+		})();
 			
 			
 			// 默认展开时，箭头图标应该朝上（表示可以折叠）
@@ -906,12 +908,25 @@
         function selectPetCard(cardElement, petId) { Array.from(ui.petOptionsGrid.children).forEach(c => c.classList.remove('selected')); cardElement.classList.add('selected'); tempSelectedPet = petId; updateConfirmButton(); }
         function updateConfirmButton() { ui.confirmPetBtn.disabled = !tempSelectedPet; }
         
-        function confirmPetSelection() {
-            if (!tempSelectedPet) return;
-            state.selectedPetId = tempSelectedPet; localStorage.setItem('edu_selectedPetId', state.selectedPetId);
-            ui.petSelectorModal.classList.add('hidden'); updatePetState(); renderTopNav();
-            loadCategory(0);
-        }
+		function confirmPetSelection() {
+			if (!tempSelectedPet) return;
+			state.selectedPetId = tempSelectedPet;
+			localStorage.setItem('edu_selectedPetId', state.selectedPetId);
+			ui.petSelectorModal.classList.add('hidden');
+			updatePetState();
+			renderTopNav();
+			
+			// 不自动加载关卡，而是显示欢迎提示，让用户主动选择
+			ui.card.classList.add('hidden');
+			ui.result.classList.add('hidden');
+			
+			// 可选：显示一个友好的提示，告诉用户点击关卡开始
+			const welcomeTip = document.createElement('div');
+			welcomeTip.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-800/80 text-white px-5 py-2 rounded-full text-sm z-50 animate-popIn';
+			welcomeTip.innerText = '✨ 点击上方「关卡选择」开始冒险 ✨';
+			document.body.appendChild(welcomeTip);
+			setTimeout(() => welcomeTip.remove(), 3000);
+		}
 
         function updatePetState() {
             if (!state.selectedPetId) return;
@@ -1230,11 +1245,17 @@
 			}
 		}
 		
-		// 同步版本，用于用户直接点击触发（无 setTimeout）
+		
+		
+		// 同步语音播放（移动端/Chrome 专用）
 		function speakSync(txt) {
 			if (!txt) return;
-			if (!window.speechSynthesis) return;
+			if (!window.speechSynthesis) {
+				console.warn("浏览器不支持语音");
+				return;
+			}
 			
+			// 取消任何正在播放的语音
 			window.speechSynthesis.cancel();
 			
 			const utterance = new SpeechSynthesisUtterance(txt);
@@ -1243,9 +1264,9 @@
 			utterance.pitch = 1.0;
 			utterance.volume = 1.0;
 			
-			// 尝试获取英语语音（同步方式）
+			// 选择英语语音
 			const voices = window.speechSynthesis.getVoices();
-			const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
+			const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en'));
 			if (englishVoice) utterance.voice = englishVoice;
 			
 			window.speechSynthesis.speak(utterance);
@@ -1262,12 +1283,8 @@
 			ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]');
 			setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
 			
-			// 关键修复：iOS 要求同步执行，不能用 setTimeout 包裹 speak
-			// 直接调用 speak，但 speak 内部也不能有延迟
-			if (window.speechSynthesis) {
-				window.speechSynthesis.cancel();
-				speakSync(item.en);
-			}
+			// 移动端/Chrome 要求：同步调用
+			speakSync(item.en);
 		}		
 		
 		
