@@ -38,16 +38,17 @@
             max-height: 0;
             opacity: 0;
         }
-        #navContainer.expanded {
-            /* 关键修复：使用固定像素值代替 vh 单位，确保计算准确，留出足够空间 */
-            max-height: 500px; 
-            opacity: 1;
-            /* 新增：允许容器内部滚动，这是滚动条生效的关键 */
-            overflow-y: auto;
-            /* 优化滚动条外观 (Firefox) */
-            scrollbar-width: thin;
-            scrollbar-color: #94a3b8 #f1f5f9;
-        }
+     
+
+		#navContainer.expanded {
+		max-height: 70vh;  /* 改为视口高度的70%，自动适应屏幕大小 */
+		opacity: 1;
+		overflow-y: auto;
+		scrollbar-width: thin;
+		scrollbar-color: #94a3b8 #f1f5f9;
+	}
+		
+		
         /* 优化滚动条外观 (Chrome/Safari/Edge) */
         #navContainer.expanded::-webkit-scrollbar {
             width: 6px;
@@ -109,10 +110,11 @@
                         <div class="text-xs text-blue-100 mb-1 font-medium hidden md:block">离升级还差 <span id="nextLevelDiff" class="font-bold text-[#FBBC05]">100</span> 分</div>
                     </div>
                 </div>
-                <!-- 移动端简化的进度条 -->
+                <!-- 移动端简化的进度条 
                 <div class="w-24 md:w-32 h-3 bg-black/20 rounded-full overflow-hidden relative border border-white/20 shrink-0">
                     <div id="expBar" class="h-full bg-gradient-to-r from-[#FBBC05] to-[#F29900] w-0 transition-all duration-700 shadow-[0_0_12px_rgba(251,188,5,0.8)]"></div>
                 </div>
+				 -->
             </div>
 
             <!-- 右侧：统计与设置 (已移除火焰，添加收藏) -->
@@ -146,10 +148,15 @@
             </div>
         </div>
 
-        <!-- 第三行：可折叠的垂直导航区 (已应用滚动修复) -->
+        <!-- 第三行：可折叠的垂直导航区 (已应用滚动修复)
         <div id="navContainer" class="bg-slate-50 border-b border-slate-200 shadow-inner">
             <div id="topNavList" class="nav-list"></div>
         </div>
+		 -->
+		<div id="navContainer" class="bg-slate-50 border-b border-slate-200 shadow-inner expanded">
+			<div id="topNavList" class="nav-list"></div>
+		</div>
+		
     </header>
 
     <!-- 主答题区 -->
@@ -825,6 +832,26 @@
             if (!state.selectedPetId) openPetSelector();
             else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
             if(state.catIdx === -1) loadCategory(0);
+			
+			
+			// 移动端兼容：首次触摸时静默激活语音系统
+			if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+				document.body.addEventListener('touchstart', function once() {
+					if (window.speechSynthesis) {
+						const silent = new SpeechSynthesisUtterance('');
+						silent.volume = 0;
+						window.speechSynthesis.speak(silent);
+					}
+					document.body.removeEventListener('touchstart', once);
+				});
+			}
+			
+			
+			// 默认展开时，箭头图标应该朝上（表示可以折叠）
+			const btnWrapper = document.querySelector('.nav-toggle-btn');
+			if (btnWrapper && document.getElementById('navContainer').classList.contains('expanded')) {
+				btnWrapper.classList.remove('rotated');  // 展开状态箭头朝下？根据CSS逻辑调整
+			}
         }
 
         // --- 重置功能 ---
@@ -892,8 +919,11 @@
             ui.score.innerText = state.totalScore;
             if(nextLvlConfig) {
                 const range = nextLvlConfig.min - currLvlConfig.min, progress = state.totalScore - currLvlConfig.min, pct = Math.min(100, (progress / range) * 100);
-                ui.expBar.style.width = `${pct}%`; ui.diff.innerText = nextLvlConfig.min - state.totalScore;
-            } else { ui.expBar.style.width = '100%'; ui.diff.innerText = 'MAX'; }
+                
+				ui.diff.innerText = nextLvlConfig.min - state.totalScore;
+            } else {
+			
+			ui.diff.innerText = 'MAX'; }
             localStorage.setItem('edu_totalScore', state.totalScore);
         }
 
@@ -923,6 +953,8 @@
                 btnWrapper.classList.remove('rotated');
             }
         }
+		
+		
 
         function renderTopNav() {
             ui.topNavList.innerHTML = '';
@@ -1153,9 +1185,63 @@
             document.getElementById('btnCnEn').className = m === 'cn-en' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
             if(state.catIdx !== -1 && state.catIdx !== -99 && state.catIdx !== -100) loadCategory(state.catIdx);
         }
-
+<!--
         function speak(txt) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'en-US'; u.rate = 0.9; window.speechSynthesis.speak(u); } }
+-->		
+		function speak(txt) {
+		if (!txt) return;
+		if ('speechSynthesis' in window) {
+			window.speechSynthesis.cancel();
+			setTimeout(() => {
+				const utterance = new SpeechSynthesisUtterance(txt);
+				utterance.lang = 'en-US';
+				utterance.rate = 0.9;
+				utterance.pitch = 1.0;
+				utterance.volume = 1.0;
+				
+				// 移动端：确保有可用语音
+				if (window.speechSynthesis.getVoices().length === 0) {
+					window.speechSynthesis.addEventListener('voiceschanged', function onVoices() {
+						window.speechSynthesis.removeEventListener('voiceschanged', onVoices);
+						const voices = window.speechSynthesis.getVoices();
+						const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
+						if (englishVoice) utterance.voice = englishVoice;
+						window.speechSynthesis.speak(utterance);
+					});
+				} else {
+					const voices = window.speechSynthesis.getVoices();
+					const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
+					if (englishVoice) utterance.voice = englishVoice;
+					window.speechSynthesis.speak(utterance);
+				}
+			}, 50);
+		}
+	}
+		
+<!--		
         function playAudio() { const item = state.queue[state.currIdx]; if(item) speak(item.en); ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]'); setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200); }
+-->
+		function playAudio() {
+			const item = state.queue[state.currIdx];
+			if (item && item.en) {
+				ui.ttsBtn.classList.add('scale-110', 'bg-[#D2E3FC]');
+				setTimeout(() => ui.ttsBtn.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
+				
+				// 移动端：先播放一个静音片段来激活音频上下文
+				if (window.speechSynthesis) {
+					const silent = new SpeechSynthesisUtterance('');
+					silent.volume = 0;
+					window.speechSynthesis.speak(silent);
+					setTimeout(() => {
+						speak(item.en);
+					}, 30);
+				} else {
+					speak(item.en);
+				}
+			}
+		}		
+		
+		
 
         init();
     </script>
