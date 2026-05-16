@@ -833,34 +833,24 @@
             if (!state.selectedPetId) openPetSelector();
             else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
             if(state.catIdx === -1) loadCategory(0);
-			
-						
-			// 移动端语音激活 - 增强版
-		(function initAudio() {
-			if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-				const activateSpeech = function() {
-					if (window.speechSynthesis) {
-						// 同步方式激活
-						window.speechSynthesis.cancel();
-						const silent = new SpeechSynthesisUtterance('');
-						silent.volume = 0;
-						window.speechSynthesis.speak(silent);
-						console.log("🎤 语音系统已激活");
-					}
-					document.body.removeEventListener('touchstart', activateSpeech);
-					document.body.removeEventListener('click', activateSpeech);
-				};
-				document.body.addEventListener('touchstart', activateSpeech);
-				document.body.addEventListener('click', activateSpeech);
-			}
-		})();
-			
+		
 			
 			// 默认展开时，箭头图标应该朝上（表示可以折叠）
 			const btnWrapper = document.querySelector('.nav-toggle-btn');
 			if (btnWrapper && document.getElementById('navContainer').classList.contains('expanded')) {
 				btnWrapper.classList.remove('rotated');  // 展开状态箭头朝下？根据CSS逻辑调整
 			}
+			
+			    // 简化的用户交互激活 - 只需这一小段
+			const activateOnClick = () => {
+				activateSpeech();
+				document.removeEventListener('click', activateOnClick);
+				document.removeEventListener('touchstart', activateOnClick);
+			};
+			document.addEventListener('click', activateOnClick);
+			document.addEventListener('touchstart', activateOnClick);
+			
+			initVoices();
         }
 
         // --- 重置功能 ---
@@ -1131,32 +1121,37 @@
 
         function prevQuestion() { if(state.currIdx > 0) { state.currIdx--; renderQuestion(); } }
         function skipQuestion() { nextQuestion(); }
+		
+		
+		function checkAnswer(btn, isRight, item, e) {
+			if(state.isLocked) return;
+			state.isLocked = true;
+			let touchX = e.clientX || (e.touches ? e.touches[0].clientX : btn.getBoundingClientRect().left + 50);
+			let touchY = e.clientY || (e.touches ? e.touches[0].clientY : btn.getBoundingClientRect().top + 20);
 
-        function checkAnswer(btn, isRight, item, e) {
-            if(state.isLocked) return;
-            state.isLocked = true;
-            let touchX = e.clientX || (e.touches ? e.touches[0].clientX : btn.getBoundingClientRect().left + 50);
-            let touchY = e.clientY || (e.touches ? e.touches[0].clientY : btn.getBoundingClientRect().top + 20);
-
-            if(isRight) {
-                btn.classList.add('correct');
-                addScore(10, touchX, touchY); // 固定每题 10 分
-                if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
-                
-				speakSync(item.en);
-                setTimeout(nextQuestion, 800);
-            } else {
-                btn.classList.add('wrong');
-                if(!state.mistakes.has(item.en)) {
-                    state.mistakes.add(item.en); saveMistakes();
-                    updateHeaderCounts();
-                }
-                Array.from(ui.grid.children).forEach(b => { if(b.dataset.val === item.en) { b.classList.add('correct'); b.style.transform = "scale(1.05)"; } });
-        
-				speakSync(item.en);
-                setTimeout(nextQuestion, 1500);
-            }
-        }
+			if(isRight) {
+				btn.classList.add('correct');
+				addScore(10, touchX, touchY);
+				if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
+				
+				activateSpeech();  // 确保已激活
+				autoSpeak(item.en);  // 使用 autoSpeak
+				
+				setTimeout(nextQuestion, 800);
+			} else {
+				btn.classList.add('wrong');
+				if(!state.mistakes.has(item.en)) {
+					state.mistakes.add(item.en); saveMistakes();
+					updateHeaderCounts();
+				}
+				Array.from(ui.grid.children).forEach(b => { if(b.dataset.val === item.en) { b.classList.add('correct'); b.style.transform = "scale(1.05)"; } });
+			
+				activateSpeech();  // 确保已激活
+				autoSpeak(item.en);  // 使用 autoSpeak
+				
+				setTimeout(nextQuestion, 1500);
+			}
+		}
 
         function addScore(pts, x, y) {
             state.totalScore += pts; state.sessionScore += pts; updatePetState();
@@ -1209,85 +1204,68 @@
             document.getElementById('btnCnEn').className = m === 'cn-en' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
             if(state.catIdx !== -1 && state.catIdx !== -99 && state.catIdx !== -100) loadCategory(state.catIdx);
         }
-<!--
-        function speak(txt) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'en-US'; u.rate = 0.9; window.speechSynthesis.speak(u); } }
--->		
-		function speak(txt) {
-			if (!txt) return;
-			if (!window.speechSynthesis) {
-				console.warn("浏览器不支持语音");
-				return;
+
+
+
+		// ========== 简单可靠的 TTS 方案 ==========
+		let isSpeechActivated = false;
+
+		// 激活语音（需要用户首次点击）
+		function activateSpeech() {
+			if (isSpeechActivated) return;
+			if (window.speechSynthesis) {
+				const silent = new SpeechSynthesisUtterance('');
+				silent.volume = 0;
+				window.speechSynthesis.speak(silent);
+				setTimeout(() => window.speechSynthesis.cancel(), 50);
 			}
+			isSpeechActivated = true;
+			console.log('语音已激活');
+		}
+
+		// 播放函数
+		function speakSimple(txt) {
+			if (!txt || !window.speechSynthesis) return;
+			if (!isSpeechActivated) return;  // 未激活时不播放
 			
-			// 取消任何正在进行的语音
-			window.speechSynthesis.cancel();
-			
-			// 创建一个新的语音实例
-			const utterance = new SpeechSynthesisUtterance(txt);
-			utterance.lang = 'en-US';
-			utterance.rate = 0.9;
-			utterance.pitch = 1.0;
-			utterance.volume = 1.0;
-			
-			// 尝试获取英语语音
-			const setVoiceAndSpeak = () => {
-				const voices = window.speechSynthesis.getVoices();
-				const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
-				if (englishVoice) utterance.voice = englishVoice;
+			try {
+				window.speechSynthesis.cancel();
+				const utterance = new SpeechSynthesisUtterance(txt);
+				utterance.lang = 'en-US';
+				utterance.rate = 0.9;
+				utterance.pitch = 1.0;
 				window.speechSynthesis.speak(utterance);
-			};
-			
-			// 确保 voices 已加载
-			if (window.speechSynthesis.getVoices().length === 0) {
-				window.speechSynthesis.addEventListener('voiceschanged', setVoiceAndSpeak, { once: true });
-			} else {
-				setVoiceAndSpeak();
-			}
+			} catch(e) {}
 		}
-		
-		
-		
-		// 同步语音播放（移动端/Chrome 专用）
-		function speakSync(txt) {
-			if (!txt) return;
-			if (!window.speechSynthesis) {
-				console.warn("浏览器不支持语音");
-				return;
-			}
-			
-			// 取消任何正在播放的语音
-			window.speechSynthesis.cancel();
-			
-			const utterance = new SpeechSynthesisUtterance(txt);
-			utterance.lang = 'en-US';
-			utterance.rate = 0.9;
-			utterance.pitch = 1.0;
-			utterance.volume = 1.0;
-			
-			// 选择英语语音
-			const voices = window.speechSynthesis.getVoices();
-			const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang === 'en_US' || v.lang.startsWith('en'));
-			if (englishVoice) utterance.voice = englishVoice;
-			
-			window.speechSynthesis.speak(utterance);
-		}
-		
-<!--		
-        function playAudio() { const item = state.queue[state.currIdx]; if(item) speak(item.en); ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]'); setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200); }
--->
+
+		// 播放按钮
 		function playAudio() {
 			const item = state.queue[state.currIdx];
 			if (!item || !item.en) return;
 			
-			// 视觉反馈
-			ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]');
-			setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
+			activateSpeech();
 			
-			// 移动端/Chrome 要求：同步调用
-			speakSync(item.en);
-		}		
-		
-		
+			const ttsBtn = document.getElementById('ttsBtn');
+			if (ttsBtn) {
+				ttsBtn.classList.add('scale-110', 'bg-[#D2E3FC]');
+				setTimeout(() => ttsBtn.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
+			}
+			
+			speakSimple(item.en);
+		}
+
+		// 答题自动播放
+		function autoSpeak(word) {
+			if (!isSpeechActivated) return;
+			speakSimple(word);
+		}
+
+		function initVoices() {
+			// 什么都不做，静默加载
+			if (window.speechSynthesis) {
+				window.speechSynthesis.getVoices();
+			}
+		}
 
         init();
     </script>
