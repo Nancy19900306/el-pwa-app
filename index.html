@@ -1127,7 +1127,8 @@
                 btn.classList.add('correct');
                 addScore(10, touchX, touchY); // 固定每题 10 分
                 if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
-                speak(item.en);
+                
+				speakSync(item.en);
                 setTimeout(nextQuestion, 800);
             } else {
                 btn.classList.add('wrong');
@@ -1136,7 +1137,8 @@
                     updateHeaderCounts();
                 }
                 Array.from(ui.grid.children).forEach(b => { if(b.dataset.val === item.en) { b.classList.add('correct'); b.style.transform = "scale(1.05)"; } });
-                speak(item.en);
+        
+				speakSync(item.en);
                 setTimeout(nextQuestion, 1500);
             }
         }
@@ -1228,6 +1230,27 @@
 			}
 		}
 		
+		// 同步版本，用于用户直接点击触发（无 setTimeout）
+		function speakSync(txt) {
+			if (!txt) return;
+			if (!window.speechSynthesis) return;
+			
+			window.speechSynthesis.cancel();
+			
+			const utterance = new SpeechSynthesisUtterance(txt);
+			utterance.lang = 'en-US';
+			utterance.rate = 0.9;
+			utterance.pitch = 1.0;
+			utterance.volume = 1.0;
+			
+			// 尝试获取英语语音（同步方式）
+			const voices = window.speechSynthesis.getVoices();
+			const englishVoice = voices.find(v => v.lang === 'en-US' || v.lang.startsWith('en'));
+			if (englishVoice) utterance.voice = englishVoice;
+			
+			window.speechSynthesis.speak(utterance);
+		}
+		
 <!--		
         function playAudio() { const item = state.queue[state.currIdx]; if(item) speak(item.en); ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]'); setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200); }
 -->
@@ -1239,17 +1262,11 @@
 			ui.tts.classList.add('scale-110', 'bg-[#D2E3FC]');
 			setTimeout(() => ui.tts.classList.remove('scale-110', 'bg-[#D2E3FC]'), 200);
 			
-			// 移动端：先尝试播放一个极短的静音来激活音频上下文
+			// 关键修复：iOS 要求同步执行，不能用 setTimeout 包裹 speak
+			// 直接调用 speak，但 speak 内部也不能有延迟
 			if (window.speechSynthesis) {
-				// 取消之前的语音
 				window.speechSynthesis.cancel();
-				
-				// 延迟一点点再播放，确保取消完成
-				setTimeout(() => {
-					speak(item.en);
-				}, 50);
-			} else {
-				speak(item.en);
+				speakSync(item.en);
 			}
 		}		
 		
