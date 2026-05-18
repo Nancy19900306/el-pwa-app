@@ -856,28 +856,7 @@
         function openResetModal() { ui.resetModal.classList.remove('hidden'); }
         function closeResetModal() { ui.resetModal.classList.add('hidden'); }
 
-        function confirmReset() {
-            localStorage.removeItem('edu_totalScore');
-            localStorage.removeItem('edu_mistakes');
-            localStorage.removeItem('edu_bookmarks');
-            localStorage.removeItem('edu_selectedPetId');
 
-            state.totalScore = 0;
-            state.mistakes.clear();
-            state.bookmarks.clear();
-            state.selectedPetId = null;
-            state.currentLevelIndex = 0;
-            state.sessionScore = 0;
-            state.currentCombo = 0;
-
-            closeResetModal();
-            openPetSelector();
-            updateHeaderCounts();
-            renderTopNav();
-            ui.card.classList.add('hidden');
-            ui.result.classList.add('hidden');
-            alert("进度已重置！请重新选择你的宠物伙伴。");
-        }
 
         // --- 宠物选择系统 ---
         function openPetSelector() {
@@ -1122,43 +1101,105 @@
         function skipQuestion() { nextQuestion(); }
 		
 		
+	// 修复1：修改 checkAnswer 函数，增加错题本为空的检测和提示
 		function checkAnswer(btn, isRight, item, e) {
-			if(state.isLocked) return;
-			state.isLocked = true;
-			let touchX = e.clientX || (e.touches ? e.touches[0].clientX : btn.getBoundingClientRect().left + 50);
-			let touchY = e.clientY || (e.touches ? e.touches[0].clientY : btn.getBoundingClientRect().top + 20);
+		if(state.isLocked) return;
+		state.isLocked = true;
+		let touchX = e.clientX || (e.touches ? e.touches[0].clientX : btn.getBoundingClientRect().left + 50);
+		let touchY = e.clientY || (e.touches ? e.touches[0].clientY : btn.getBoundingClientRect().top + 20);
 
-			if(isRight) {
-				btn.classList.add('correct');
-				addScore(10, touchX, touchY);
-				if(state.mistakes.has(item.en)) { state.mistakes.delete(item.en); saveMistakes(); }
+		if(isRight) {
+			btn.classList.add('correct');
+			addScore(10, touchX, touchY);
+			
+			// 如果单词在错题本中，移除
+			let wasInMistakes = state.mistakes.has(item.en);
+			if(wasInMistakes) { 
+				state.mistakes.delete(item.en); 
+				saveMistakes(); 
+				updateHeaderCounts();
 				
-				// 播放声音（异步，不阻塞）
-				autoSpeak(item.en);
-				
-				// 延迟后跳转下一题（原有逻辑不变）
-				setTimeout(nextQuestion, 800);
-			} else {
-				btn.classList.add('wrong');
-				if(!state.mistakes.has(item.en)) {
-					state.mistakes.add(item.en); saveMistakes();
-					updateHeaderCounts();
+				// 【修复】如果错题本变空，且当前处于错题本模式
+				if(state.mistakes.size === 0 && state.catIdx === -99) {
+					setTimeout(() => {
+						// 1. 显示清空提示
+						const clearedTip = document.createElement('div');
+						clearedTip.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-6 py-3 rounded-2xl font-bold text-xl z-50 shadow-2xl animate-popIn';
+						clearedTip.innerText = '🎉 恭喜！错题本已清空！ 🎉';
+						document.body.appendChild(clearedTip);
+						setTimeout(() => clearedTip.remove(), 2000);
+						
+						// 2. 自动展开关卡菜单
+						const container = document.getElementById('navContainer');
+						const btnWrapper = document.querySelector('.nav-toggle-btn');
+						if (container && !container.classList.contains('expanded')) {
+							container.classList.add('expanded');
+							if(btnWrapper) btnWrapper.classList.remove('rotated');
+						}
+					}, 800);
 				}
-				// 显示正确答案
-				Array.from(ui.grid.children).forEach(b => { 
-					if(b.dataset.val === item.en) { 
-						b.classList.add('correct'); 
-						b.style.transform = "scale(1.05)"; 
-					} 
-				});
-				
-				// 播放声音（异步，不阻塞）
-				autoSpeak(item.en);
-				
-				// 延迟后跳转下一题（原有逻辑不变）
-				setTimeout(nextQuestion, 1500);
 			}
+			
+			// 播放声音（异步，不阻塞）
+			autoSpeak(item.en);
+			
+			// 延迟后跳转下一题
+			setTimeout(nextQuestion, 800);
+		} else {
+			btn.classList.add('wrong');
+			if(!state.mistakes.has(item.en)) {
+				state.mistakes.add(item.en); 
+				saveMistakes();
+				updateHeaderCounts();
+			}
+			// 显示正确答案
+			Array.from(ui.grid.children).forEach(b => { 
+				if(b.dataset.val === item.en) { 
+					b.classList.add('correct'); 
+					b.style.transform = "scale(1.05)"; 
+				} 
+			});
+			
+			// 播放声音（异步，不阻塞）
+			autoSpeak(item.en);
+			
+			// 延迟后跳转下一题
+			setTimeout(nextQuestion, 1500);
 		}
+	}
+
+	// 修复2：修改 confirmReset 函数，重置后确保关卡列表展开
+	function confirmReset() {
+		localStorage.removeItem('edu_totalScore');
+		localStorage.removeItem('edu_mistakes');
+		localStorage.removeItem('edu_bookmarks');
+		localStorage.removeItem('edu_selectedPetId');
+
+		state.totalScore = 0;
+		state.mistakes.clear();
+		state.bookmarks.clear();
+		state.selectedPetId = null;
+		state.currentLevelIndex = 0;
+		state.sessionScore = 0;
+		state.currentCombo = 0;
+
+		closeResetModal();
+		openPetSelector();
+		updateHeaderCounts();
+		renderTopNav();
+		ui.card.classList.add('hidden');
+		ui.result.classList.add('hidden');
+		
+		// 【修复】重置后自动展开关卡菜单，让用户选择关卡
+		const container = document.getElementById('navContainer');
+		const btnWrapper = document.querySelector('.nav-toggle-btn');
+		if (container && !container.classList.contains('expanded')) {
+			container.classList.add('expanded');
+			if(btnWrapper) btnWrapper.classList.remove('rotated');
+		}
+		
+		alert("进度已重置！请重新选择你的宠物伙伴，然后点击关卡开始学习。");
+	}
 
         function addScore(pts, x, y) {
             state.totalScore += pts; state.sessionScore += pts; updatePetState();
@@ -1168,10 +1209,29 @@
         }
 
         function nextQuestion() { state.currIdx++; if(state.currIdx < state.queue.length) renderQuestion(); else finishLevel(); }
-        function finishLevel() {
-            ui.bar.style.width = '100%';
-            setTimeout(() => { ui.card.classList.add('hidden'); ui.result.classList.remove('hidden'); document.getElementById('levelScore').innerText = state.sessionScore; confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#4285F4', '#34A853', '#FBBC05', '#EA4335'] }); }, 300);
-        }
+		
+		// 在 finishLevel 函数末尾添加以下检测（可选优化）
+		function finishLevel() {
+			ui.bar.style.width = '100%';
+			setTimeout(() => { 
+				ui.card.classList.add('hidden'); 
+				ui.result.classList.remove('hidden'); 
+				document.getElementById('levelScore').innerText = state.sessionScore; 
+				confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#4285F4', '#34A853', '#FBBC05', '#EA4335'] });
+				
+				// 【优化】如果错题本模式且错题本已空，自动退出到主界面
+				if(state.catIdx === -99 && state.mistakes.size === 0) {
+					setTimeout(() => {
+						ui.result.classList.add('hidden');
+						const tip = document.createElement('div');
+						tip.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white px-6 py-3 rounded-2xl font-bold text-xl z-50 shadow-2xl animate-popIn';
+						tip.innerText = '📖 错题本已清零，返回主界面 📖';
+						document.body.appendChild(tip);
+						setTimeout(() => tip.remove(), 2000);
+					}, 1000);
+				}
+			}, 300);
+		}
         function reloadCurrent() { if (state.catIdx === -100) loadBookmarks(); else loadCategory(state.catIdx); }
 
         // 新增：双击收藏功能

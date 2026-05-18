@@ -1,6 +1,6 @@
 {
-  "name": "英语单词大冒险",
-  "short_name": "单词闯关",
+  "name": "小学英语词汇",
+  "short_name": "小学英语",
   "start_url": "./",
   "display": "standalone",
   "theme_color": "#4285F4",
