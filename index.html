@@ -14,6 +14,17 @@
 	<script src="./js/canvas-confetti-1.6.0.min.js"></script>
 
     <style>
+	
+			/* 图片开关样式 - 新增 */
+		.img-toggle-switch { position: relative; display: inline-block; width: 52px; height: 28px; margin-left: 12px; vertical-align: middle; }
+		.img-toggle-switch input { opacity: 0; width: 0; height: 0; }
+		.slider-round { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: 0.3s; border-radius: 34px; }
+		.slider-round:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: 0.3s; border-radius: 50%; }
+		input:checked + .slider-round { background-color: #4285F4; }
+		input:checked + .slider-round:before { transform: translateX(24px); }
+		.img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f0f3fa, #e2e8f0); border-radius: 1.5rem; font-size: 3rem; color: #94a3b8; }
+	
+	
         /* 核心基础样式与护眼背景 */
         body { font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background-color: #F5F7FB; -webkit-tap-highlight-color: transparent; overflow: hidden; }
         
@@ -141,11 +152,25 @@
                     <span>⬇️</span>
                 </button>
             </div>
-            <!-- 模式切换 -->
-            <div class="flex bg-slate-100 p-1 rounded-lg shadow-inner">
-                <button onclick="setMode('en-cn')" id="btnEnCn" class="px-3 py-1 text-xs font-bold rounded-md shadow bg-white text-[#4285F4] transition-all">英 ➔ 汉</button>
-                <button onclick="setMode('cn-en')" id="btnCnEn" class="px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all">汉 ➔ 英</button>
-            </div>
+			
+			<div class="flex items-center gap-4">
+				<!-- 图片开关组件 - 新增 -->
+				<div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full shadow-inner">
+					<span class="text-xs font-semibold text-slate-600">🖼️ 图片</span>
+					<label class="img-toggle-switch">
+						<input type="checkbox" id="imgToggleCheckbox" checked>
+						<span class="slider-round"></span>
+					</label>
+				</div>
+				<!-- 模式切换 -->
+				<div class="flex bg-slate-100 p-1 rounded-lg shadow-inner">
+					<button onclick="setMode('en-cn')" id="btnEnCn" class="px-3 py-1 text-xs font-bold rounded-md shadow bg-white text-[#4285F4] transition-all">英 ➔ 汉</button>
+					<button onclick="setMode('cn-en')" id="btnCnEn" class="px-3 py-1 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all">汉 ➔ 英</button>
+				</div>
+			</div>
+			
+			
+      
         </div>
 
         <!-- 第三行：可折叠的垂直导航区 (已应用滚动修复)
@@ -177,12 +202,16 @@
                     <!-- 已移除右上角收藏按钮 -->
 
                     <!-- 使用真实图片展示区域，带加载动画 -->
-                    <div class="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] overflow-hidden shadow-lg border-[6px] border-white bg-slate-100 mb-4 shrink-0 relative flex items-center justify-center transition-transform hover:scale-105 group">
-                        <div id="imgLoading" class="absolute inset-0 flex items-center justify-center bg-slate-100 z-0">
-                            <span class="text-4xl text-slate-300 animate-pulse">⏳</span>
-                        </div>
-                        <img id="qImg" src="" class="w-full h-full object-cover z-10 relative opacity-0 transition-opacity duration-300 animate-popIn" alt="单词图解" onload="this.style.opacity=1; document.getElementById('imgLoading').style.display='none'" onerror="this.src='https://api.zcat.cn/udata/716492/png/97ce4d4e6f1911baa35b7f161e9f595a.png'; this.style.opacity=1;">
-                    </div>
+   				
+					
+					<div id="imgContainer" class="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] overflow-hidden shadow-lg border-[6px] border-white bg-slate-100 mb-4 shrink-0 relative flex items-center justify-center transition-transform hover:scale-105 group">
+						<div id="imgLoading" class="absolute inset-0 flex items-center justify-center bg-slate-100 z-0">
+							<span class="text-4xl text-slate-300 animate-pulse">⏳</span>
+						</div>
+						<img id="qImg" src="" class="w-full h-full object-cover z-10 relative opacity-0 transition-opacity duration-300" alt="单词图解" onload="this.style.opacity=1; document.getElementById('imgLoading').style.display='none'" onerror="this.src='https://api.zcat.cn/udata/716492/png/97ce4d4e6f1911baa35b7f161e9f595a.png'; this.style.opacity=1;">
+						<div id="imgPlaceholder" class="img-placeholder hidden absolute inset-0 z-20 bg-gradient-to-br from-slate-200 to-slate-300">🖼️</div>
+					</div>
+					
                     
                     <div class="text-center w-full z-10 px-4 flex-1 flex flex-col justify-center">
                         <div class="flex items-center justify-center gap-4">
@@ -814,7 +843,8 @@
             queue: [],
             currIdx: 0,
             isLocked: false,
-            sessionScore: 0
+            sessionScore: 0,
+			imgEnabled: true    // 新增这行，放在最后
         };
 
         const ui = {
@@ -831,7 +861,12 @@
         function init() {
 
             if (!state.selectedPetId) openPetSelector();
-            else { updatePetState(); renderTopNav(); updateHeaderCounts(); }
+            else { 
+				updatePetState(); 
+				renderTopNav(); 
+				updateHeaderCounts();
+				initImgToggle();  // 新增这行 - 初始化图片开关 
+			}
             if(state.catIdx === -1) loadCategory(0);
 		
 			
@@ -1052,50 +1087,95 @@
         }
 
         function renderQuestion() {
-            state.isLocked = false;
-            const item = state.queue[state.currIdx];
-            ui.bar.style.width = `${(state.currIdx / state.queue.length) * 100}%`;
-            ui.prevBtn.disabled = state.currIdx === 0;
-            if(state.currIdx === state.queue.length - 1) { ui.nextBtn.innerHTML = `<span>完成关卡</span><span class="ml-2 text-[#34A853]">🏁</span>`; ui.nextBtn.onclick = finishLevel; }
-            else { ui.nextBtn.innerHTML = `<span>跳过本题</span><span class="ml-2">➡️</span>`; ui.nextBtn.onclick = skipQuestion; }
+			state.isLocked = false;
+			const item = state.queue[state.currIdx];
+			ui.bar.style.width = `${(state.currIdx / state.queue.length) * 100}%`;
+			ui.prevBtn.disabled = state.currIdx === 0;
+			if (state.currIdx === state.queue.length - 1) { 
+				ui.nextBtn.innerHTML = `<span>完成关卡</span><span class="ml-2 text-[#34A853]">🏁</span>`; 
+				ui.nextBtn.onclick = finishLevel; 
+			} else { 
+				ui.nextBtn.innerHTML = `<span>跳过本题</span><span class="ml-2">➡️</span>`; 
+				ui.nextBtn.onclick = skipQuestion; 
+			}
 
-            const isEn = state.mode === 'en-cn';
-            if(isEn) {
-                ui.text.innerText = item.en;
-                ui.sub.innerHTML = `<div class="ipa-box text-xl mt-1 tracking-wider bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">${item.ipa}</div>`;
-                ui.tts.classList.remove('hidden');
-            } else {
-                ui.text.innerText = item.cn;
-                try { ui.sub.innerHTML = `<div class="pinyin-box-large mt-1">${window.pinyinPro.pinyin(item.cn, { toneType: 'symbol' })}</div>`; } catch(e) { ui.sub.innerHTML = ""; }
-                ui.tts.classList.add('hidden');
-            }
+			const isEn = state.mode === 'en-cn';
+			if (isEn) {
+				// 英译汉模式：题目显示英文 + 音标
+				ui.text.innerText = item.en;
+				ui.sub.innerHTML = `
+					<div class="ipa-box text-xl mt-1 tracking-wider bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
+						${item.ipa}
+					</div>
+				`;
+				ui.tts.classList.remove('hidden');
+			} else {
+				// 汉译英模式：题目显示中文 + 拼音（字号调大）
+				ui.text.innerText = item.cn;
+				const pinyinText = getPinyinForChinese(item.cn);
+				ui.sub.innerHTML = `
+					<div class="pinyin-box-large mt-1 flex flex-col items-center">
+						<span class="text-4xl font-bold text-emerald-600">${pinyinText}</span>
+					</div>
+				`;
+				ui.tts.classList.add('hidden');
+			}
 
-            ui.qImg.style.opacity = '0';
-            ui.imgLoading.style.display = 'flex';
-            ui.qImg.src = item.img;
-            
-            ui.qImg.classList.remove('animate-popIn');
-            void ui.qImg.offsetWidth; 
-            ui.qImg.classList.add('animate-popIn');
+			// 图片加载（受开关控制）
+			if (state.imgEnabled) {
+				document.getElementById('qImg').classList.remove('hidden');
+				document.getElementById('imgPlaceholder').classList.add('hidden');
+				document.getElementById('imgLoading').style.display = 'flex';
+				document.getElementById('qImg').style.opacity = '0';
+				document.getElementById('qImg').src = item.img;
+				document.getElementById('qImg').onload = () => {
+					document.getElementById('qImg').style.opacity = '1';
+					document.getElementById('imgLoading').style.display = 'none';
+				};
+				document.getElementById('qImg').onerror = () => {
+					document.getElementById('qImg').src = 'https://api.zcat.cn/udata/716492/png/97ce4d4e6f1911baa35b7f161e9f595a.png';
+					document.getElementById('qImg').style.opacity = '1';
+					document.getElementById('imgLoading').style.display = 'none';
+				};
+			} else {
+				document.getElementById('qImg').classList.add('hidden');
+				document.getElementById('imgPlaceholder').classList.remove('hidden');
+				document.getElementById('imgLoading').style.display = 'none';
+			}
 
-            let pool = (state.catIdx === -99 || state.catIdx === -100) ? rawData.flatMap(c => c.items).filter(x => x.en !== item.en) : rawData[state.catIdx].items.filter(x => x !== item);
-            if(pool.length < 3) pool = [...pool, ...rawData.flatMap(c=>c.items).filter(x=>x.en!==item.en)];
-            const opts = [item, ...pool.sort(()=>Math.random()-0.5).slice(0,3)].sort(()=>Math.random()-0.5);
+			// 生成选项
+			let pool = (state.catIdx === -99 || state.catIdx === -100) 
+				? rawData.flatMap(c => c.items).filter(x => x.en !== item.en) 
+				: rawData[state.catIdx].items.filter(x => x !== item);
+			
+			if (pool.length < 3) pool = [...pool, ...rawData.flatMap(c => c.items).filter(x => x.en !== item.en)];
+			const opts = [item, ...pool.sort(() => Math.random() - 0.5).slice(0, 3)].sort(() => Math.random() - 0.5);
 
-            ui.grid.innerHTML = '';
-            opts.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.dataset.val = opt.en;
-                btn.className = "option-btn w-full h-full min-h-[80px] sm:min-h-[100px] bg-white rounded-2xl p-2 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 shadow-sm border-2 border-slate-200 hover:bg-[#F8F9FA] hover:border-slate-300";
-                if(isEn) {
-                    btn.innerHTML = `<span class="text-xl sm:text-2xl font-black text-slate-700 leading-none">${opt.cn}</span>`;
-                } else {
-                    btn.innerHTML = `<span class="text-2xl sm:text-3xl font-black text-slate-700 leading-none">${opt.en}</span><span class="ipa-box text-xs sm:text-base text-slate-400">${opt.ipa}</span>`;
-                }
-                btn.onclick = (e) => checkAnswer(btn, opt.en === item.en, item, e);
-                ui.grid.appendChild(btn);
-            });
-        }
+			ui.grid.innerHTML = '';
+			opts.forEach(opt => {
+				const btn = document.createElement('button');
+				btn.dataset.val = opt.en;
+				btn.className = "option-btn w-full h-full min-h-[80px] sm:min-h-[100px] bg-white rounded-2xl p-2 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 shadow-sm border-2 border-slate-200 hover:bg-[#F8F9FA] hover:border-slate-300";
+				
+			if (state.mode === 'en-cn') {
+				// 英译汉选项：显示"汉字 + 拼音"（拼音字号调大）
+				const optPinyin = getPinyinForChinese(opt.cn);
+				btn.innerHTML = `
+					<span class="text-xl sm:text-2xl font-black text-slate-700 leading-none">${opt.cn}</span>
+					<span class="text-base text-slate-500">${optPinyin}</span>
+				`;
+			} else {
+				// 汉译英选项：显示"英文 + 音标"
+				btn.innerHTML = `
+					<span class="text-2xl sm:text-3xl font-black text-slate-700 leading-none">${opt.en}</span>
+					<span class="ipa-box text-sm sm:text-base text-slate-400">${opt.ipa}</span>
+				`;
+			}
+					
+					btn.onclick = (e) => checkAnswer(btn, opt.en === item.en, item, e);
+					ui.grid.appendChild(btn);
+				});
+			}
 
         function prevQuestion() { if(state.currIdx > 0) { state.currIdx--; renderQuestion(); } }
         function skipQuestion() { nextQuestion(); }
@@ -1267,7 +1347,9 @@
 
 
 		
-		function setMode(m) {
+	
+	
+	function setMode(m) {
 			state.mode = m;
 			document.getElementById('btnEnCn').className = m === 'en-cn' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
 			document.getElementById('btnCnEn').className = m === 'cn-en' ? "px-3 py-1 text-xs md:text-sm font-bold rounded-md shadow bg-white text-[#4285F4] transition-all" : "px-3 py-1 text-xs md:text-sm font-bold rounded-md text-slate-500 hover:text-slate-800 transition-all";
@@ -1276,7 +1358,7 @@
 			collapseNavOnSelect();
 			
 			if(state.catIdx !== -1 && state.catIdx !== -99 && state.catIdx !== -100) loadCategory(state.catIdx);
-	}
+		}
 
 		// ========== 有道 TTS（国内稳定，不影响答题流程） ==========
 		let isAudioReady = false;
@@ -1374,6 +1456,48 @@
 			document.addEventListener('click', activateOnInteraction);
 			document.addEventListener('touchstart', activateOnInteraction);
 		}, 100);
+
+
+	// 拼音转换函数 - 新增
+	function getPinyinForChinese(chineseText) {
+		if (!window.pinyinPro) return chineseText;
+		try {
+			return window.pinyinPro.pinyin(chineseText, { toneType: 'symbol', separator: ' ' });
+		} catch(e) { 
+			return chineseText; 
+		}
+	}
+	
+	// 图片开关控制 - 新增
+	function updateImageVisibility() {
+		const isEnabled = state.imgEnabled;
+		if (isEnabled) {
+			document.getElementById('qImg').classList.remove('hidden');
+			document.getElementById('imgPlaceholder').classList.add('hidden');
+			// 重新加载当前图片
+			const item = state.queue[state.currIdx];
+			if (item && item.img) {
+				document.getElementById('imgLoading').style.display = 'flex';
+				document.getElementById('qImg').style.opacity = '0';
+				document.getElementById('qImg').src = item.img;
+			}
+		} else {
+			document.getElementById('qImg').classList.add('hidden');
+			document.getElementById('imgPlaceholder').classList.remove('hidden');
+			document.getElementById('imgLoading').style.display = 'none';
+		}
+	}
+
+	function initImgToggle() {
+		const toggle = document.getElementById('imgToggleCheckbox');
+		if (!toggle) return;
+		toggle.checked = state.imgEnabled;
+		toggle.addEventListener('change', (e) => {
+			state.imgEnabled = e.target.checked;
+			localStorage.setItem('edu_imgEnabled', state.imgEnabled);
+			updateImageVisibility();
+		});
+	}
 
         init();
     </script>
